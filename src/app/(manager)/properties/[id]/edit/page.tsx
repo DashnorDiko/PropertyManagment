@@ -8,31 +8,28 @@ type EditPropertyPageProps = {
 const mockById: Record<
   string,
   {
-    unit: string;
-    floor: string;
-    areaSqm: string;
-    ownerName: string;
-    monthlyCharge: string;
-    occupancy: "vacant" | "occupied";
+    unitName: string;
+    locationSubtitle: string;
+    rentAmount: string;
+    rentCurrency: "EUR" | "ALL";
+    status: "vacant" | "occupied" | "sold";
     tenantName: string;
   }
 > = {
   "p-101": {
-    unit: "A-101",
-    floor: "1",
-    areaSqm: "87",
-    ownerName: "Ilir Dervishi",
-    monthlyCharge: "42.5",
-    occupancy: "occupied",
-    tenantName: "Ardit Kola",
+    unitName: "Apartment 1",
+    locationSubtitle: "Building A, Staircase 1, Floor 1",
+    rentAmount: "420",
+    rentCurrency: "EUR",
+    status: "occupied",
+    tenantName: "Elira Hoxha",
   },
   "p-202": {
-    unit: "A-202",
-    floor: "2",
-    areaSqm: "64",
-    ownerName: "Mira Basha",
-    monthlyCharge: "35",
-    occupancy: "vacant",
+    unitName: "Apartment 2",
+    locationSubtitle: "Building A, Staircase 1, Floor 2",
+    rentAmount: "350",
+    rentCurrency: "EUR",
+    status: "vacant",
     tenantName: "",
   },
 };
@@ -40,19 +37,18 @@ const mockById: Record<
 export default async function EditPropertyPage({ params }: EditPropertyPageProps) {
   const { id } = await params;
   const initialValues = mockById[id] ?? {
-    unit: id.toUpperCase(),
-    floor: "0",
-    areaSqm: "",
-    ownerName: "",
-    monthlyCharge: "",
-    occupancy: "vacant" as const,
+    unitName: `Apartment ${id.toUpperCase()}`,
+    locationSubtitle: "",
+    rentAmount: "",
+    rentCurrency: "EUR" as const,
+    status: "vacant" as const,
     tenantName: "",
   };
 
   return (
     <div className="space-y-5">
       <ModuleHeader
-        title={`Edit Property ${initialValues.unit}`}
+        title={`Edit Property ${initialValues.unitName}`}
         description="Update metadata and occupancy details. Backend persistence can be added after API wiring."
       />
       <PropertyForm mode="edit" initialValues={initialValues} />

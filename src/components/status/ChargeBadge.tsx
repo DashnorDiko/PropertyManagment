@@ -1,4 +1,4 @@
-type ChargeStatus = "paid" | "pending" | "partial" | "overdue" | "waived";
+export type ChargeStatus = "paid" | "pending" | "partial" | "overdue" | "waived";
 
 type ChargeBadgeProps = {
   status: ChargeStatus;
@@ -13,23 +13,28 @@ type StatusVisual = {
 const statusMap: Record<ChargeStatus, StatusVisual> = {
   paid: {
     label: "Paid",
-    className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    className:
+      "bg-[var(--pm-accent-soft)] text-[var(--pm-accent)] ring-[var(--pm-accent)]/20",
   },
   pending: {
     label: "Pending",
-    className: "bg-amber-50 text-amber-700 ring-amber-200",
+    className:
+      "bg-[var(--pm-surface-muted)] text-[var(--pm-info-strong)] ring-[var(--pm-info-strong)]/20",
   },
   partial: {
     label: "Partial",
-    className: "bg-sky-50 text-sky-700 ring-sky-200",
+    className:
+      "bg-[var(--pm-info-soft)] text-[var(--pm-info-strong)] ring-[var(--pm-info-strong)]/20",
   },
   overdue: {
     label: "Overdue",
-    className: "bg-rose-50 text-rose-700 ring-rose-200",
+    className:
+      "bg-[var(--pm-danger-soft)] text-[var(--pm-danger-strong)] ring-[var(--pm-danger-strong)]/20",
   },
   waived: {
     label: "Waived",
-    className: "bg-slate-100 text-slate-700 ring-slate-200",
+    className:
+      "bg-[var(--pm-surface-soft)] text-[var(--pm-text-secondary)] ring-[var(--pm-border)]",
   },
 };
 

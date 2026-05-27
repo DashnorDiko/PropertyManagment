@@ -8,22 +8,38 @@ const internetPlans = [
 ];
 
 export default function InternetPage() {
+  const totalUnits = internetPlans.reduce((sum, plan) => sum + plan.units, 0);
+
   return (
     <div className="space-y-5">
       <ModuleHeader
         title="Internet Services"
         description="Overview of provider plans assigned to building units."
       />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <SurfaceCard title="Providers">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">
+            {new Set(internetPlans.map((plan) => plan.provider)).size}
+          </p>
+        </SurfaceCard>
+        <SurfaceCard title="Plans">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{internetPlans.length}</p>
+        </SurfaceCard>
+        <SurfaceCard title="Linked Units">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{totalUnits}</p>
+        </SurfaceCard>
+      </div>
+
       <SurfaceCard title="Provider Distribution">
         <ul className="space-y-2">
           {internetPlans.map((plan) => (
             <li
               key={`${plan.provider}-${plan.speed}`}
-              className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm"
+              className="grid grid-cols-3 items-center rounded-lg border border-[var(--pm-border)]/70 bg-[var(--pm-surface-soft)] px-3 py-2 text-sm"
             >
-              <span className="font-medium text-slate-800">{plan.provider}</span>
-              <span className="text-slate-600">{plan.speed}</span>
-              <span className="text-slate-500">{plan.units} units</span>
+              <span className="font-medium text-[var(--pm-text-primary)]">{plan.provider}</span>
+              <span className="text-[var(--pm-text-secondary)]">{plan.speed}</span>
+              <span className="text-[var(--pm-text-secondary)]">{plan.units} units</span>
             </li>
           ))}
         </ul>

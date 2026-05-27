@@ -5,16 +5,16 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
+import type { Currency } from "@/lib/domain/types";
 
-type Occupancy = "vacant" | "occupied";
+type Status = "vacant" | "occupied" | "sold";
 
 export type PropertyFormValues = {
-  unit: string;
-  floor: string;
-  areaSqm: string;
-  ownerName: string;
-  monthlyCharge: string;
-  occupancy: Occupancy;
+  unitName: string;
+  locationSubtitle: string;
+  rentAmount: string;
+  rentCurrency: Currency;
+  status: Status;
   tenantName: string;
 };
 
@@ -26,24 +26,23 @@ type PropertyFormProps = {
 type PropertyFormErrors = Partial<Record<keyof PropertyFormValues, string>>;
 
 const defaultValues: PropertyFormValues = {
-  unit: "",
-  floor: "0",
-  areaSqm: "",
-  ownerName: "",
-  monthlyCharge: "",
-  occupancy: "vacant",
+  unitName: "",
+  locationSubtitle: "",
+  rentAmount: "",
+  rentCurrency: "EUR",
+  status: "vacant",
   tenantName: "",
 };
 
 function sanitizeInput(values: PropertyFormValues): PropertyFormValues {
   const sanitized: PropertyFormValues = {
     ...values,
-    unit: values.unit.trim().toUpperCase(),
-    ownerName: values.ownerName.trim(),
+    unitName: values.unitName.trim(),
+    locationSubtitle: values.locationSubtitle.trim(),
     tenantName: values.tenantName.trim(),
   };
 
-  if (sanitized.occupancy === "vacant") {
+  if (sanitized.status === "vacant") {
     sanitized.tenantName = "";
   }
 
@@ -53,31 +52,21 @@ function sanitizeInput(values: PropertyFormValues): PropertyFormValues {
 function validate(values: PropertyFormValues): PropertyFormErrors {
   const errors: PropertyFormErrors = {};
 
-  if (!values.unit.trim()) {
-    errors.unit = "Unit code is required.";
+  if (!values.unitName.trim()) {
+    errors.unitName = "Unit name is required.";
   }
 
-  const floorNumber = Number(values.floor);
-  if (!Number.isInteger(floorNumber) || floorNumber < -3 || floorNumber > 120) {
-    errors.floor = "Floor must be a whole number between -3 and 120.";
+  if (!values.locationSubtitle.trim()) {
+    errors.locationSubtitle = "Location subtitle is required.";
   }
 
-  const areaNumber = Number(values.areaSqm);
-  if (!Number.isFinite(areaNumber) || areaNumber <= 0) {
-    errors.areaSqm = "Area must be greater than 0.";
+  const rentAmountNumber = Number(values.rentAmount);
+  if (!Number.isFinite(rentAmountNumber) || rentAmountNumber < 0) {
+    errors.rentAmount = "Rent cannot be negative.";
   }
 
-  if (!values.ownerName.trim()) {
-    errors.ownerName = "Owner name is required.";
-  }
-
-  const monthlyChargeNumber = Number(values.monthlyCharge);
-  if (!Number.isFinite(monthlyChargeNumber) || monthlyChargeNumber < 0) {
-    errors.monthlyCharge = "Monthly charge cannot be negative.";
-  }
-
-  if (values.occupancy === "occupied" && !values.tenantName.trim()) {
-    errors.tenantName = "Tenant name is required when occupied.";
+  if ((values.status === "occupied" || values.status === "sold") && !values.tenantName.trim()) {
+    errors.tenantName = "Tenant name is required when status is occupied or sold.";
   }
 
   return errors;
@@ -102,7 +91,7 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
         [field]: fieldValue,
       };
 
-      if (field === "occupancy" && fieldValue === "vacant") {
+      if (field === "status" && fieldValue === "vacant") {
         nextValues.tenantName = "";
       }
 
@@ -124,116 +113,123 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
 
   const helperMessage =
     mode === "create"
-      ? "Create a property record. Form submission is local until backend APIs are connected."
-      : "Update property details. Validation mirrors create flow and is backend-ready.";
+      ? "Create a property record with unit name, location subtitle, rent, and status. Submission is local until backend APIs are connected."
+      : "Update unit details, status, and rent settings. Validation mirrors create flow and is backend-ready.";
 
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+      className="space-y-5 rounded-2xl border border-[var(--pm-border)]/80 bg-[var(--pm-surface)] p-5 shadow-sm"
     >
-      <p className="text-sm text-slate-600">{helperMessage}</p>
+      <p className="text-sm text-[var(--pm-text-secondary)]">{helperMessage}</p>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Unit</span>
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Unit Name</span>
           <input
-            value={values.unit}
-            onChange={onFieldChange("unit")}
-            placeholder="A-101"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-indigo-300 transition focus:ring"
+            value={values.unitName}
+            onChange={onFieldChange("unitName")}
+            placeholder="Apartment 1"
+            className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           />
-          {errors.unit ? <p className="text-xs text-red-600">{errors.unit}</p> : null}
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Floor</span>
-          <input
-            type="number"
-            value={values.floor}
-            onChange={onFieldChange("floor")}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-indigo-300 transition focus:ring"
-          />
-          {errors.floor ? <p className="text-xs text-red-600">{errors.floor}</p> : null}
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Area (m²)</span>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={values.areaSqm}
-            onChange={onFieldChange("areaSqm")}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-indigo-300 transition focus:ring"
-          />
-          {errors.areaSqm ? <p className="text-xs text-red-600">{errors.areaSqm}</p> : null}
-        </label>
-
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Owner Name</span>
-          <input
-            value={values.ownerName}
-            onChange={onFieldChange("ownerName")}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-indigo-300 transition focus:ring"
-          />
-          {errors.ownerName ? (
-            <p className="text-xs text-red-600">{errors.ownerName}</p>
+          {errors.unitName ? (
+            <p className="text-xs text-[var(--pm-danger-strong)]">{errors.unitName}</p>
           ) : null}
         </label>
 
         <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Monthly Charge (EUR)</span>
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">
+            Location Subtitle
+          </span>
           <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={values.monthlyCharge}
-            onChange={onFieldChange("monthlyCharge")}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-indigo-300 transition focus:ring"
+            value={values.locationSubtitle}
+            onChange={onFieldChange("locationSubtitle")}
+            placeholder="Building A, Staircase 1, Floor 2"
+            className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           />
-          {errors.monthlyCharge ? (
-            <p className="text-xs text-red-600">{errors.monthlyCharge}</p>
+          {errors.locationSubtitle ? (
+            <p className="text-xs text-[var(--pm-danger-strong)]">{errors.locationSubtitle}</p>
           ) : null}
         </label>
 
         <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Occupancy</span>
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">
+            Rent Amount
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={values.rentAmount}
+              onChange={onFieldChange("rentAmount")}
+              className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
+            />
+            <div className="inline-flex rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface-soft)] p-1">
+              {(["EUR", "ALL"] as const).map((currency) => (
+                <button
+                  key={currency}
+                  type="button"
+                  onClick={() => {
+                    setValues((current) => ({ ...current, rentCurrency: currency }));
+                    if (errors.rentCurrency) {
+                      setErrors((previous) => ({ ...previous, rentCurrency: undefined }));
+                    }
+                  }}
+                  className={[
+                    "min-w-14 rounded-md px-2.5 py-1.5 text-xs font-medium transition",
+                    values.rentCurrency === currency
+                      ? "bg-[var(--pm-accent)] text-white"
+                      : "text-[var(--pm-text-secondary)] hover:bg-[var(--pm-surface)]",
+                  ].join(" ")}
+                >
+                  {currency}
+                </button>
+              ))}
+            </div>
+          </div>
+          {errors.rentAmount ? (
+            <p className="text-xs text-[var(--pm-danger-strong)]">{errors.rentAmount}</p>
+          ) : null}
+        </label>
+
+        <label className="space-y-1">
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Status</span>
           <select
-            value={values.occupancy}
-            onChange={onFieldChange("occupancy")}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-indigo-300 transition focus:ring"
+            value={values.status}
+            onChange={onFieldChange("status")}
+            className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           >
             <option value="vacant">Vacant</option>
             <option value="occupied">Occupied</option>
+            <option value="sold">Sold</option>
           </select>
         </label>
       </div>
 
-      {values.occupancy === "occupied" ? (
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-slate-700">Tenant Name</span>
-          <input
-            value={values.tenantName}
-            onChange={onFieldChange("tenantName")}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-indigo-300 transition focus:ring"
-          />
-          {errors.tenantName ? (
-            <p className="text-xs text-red-600">{errors.tenantName}</p>
-          ) : null}
-        </label>
-      ) : null}
+      <label className="space-y-1">
+        <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Tenant Name</span>
+        <input
+          value={values.tenantName}
+          onChange={onFieldChange("tenantName")}
+          placeholder={values.status === "vacant" ? "Optional while vacant" : "Required"}
+          className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
+        />
+        {errors.tenantName ? (
+          <p className="text-xs text-[var(--pm-danger-strong)]">{errors.tenantName}</p>
+        ) : null}
+      </label>
 
       {isSubmitted && Object.keys(errors).length === 0 ? (
-        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-lg bg-[var(--pm-accent-soft)] px-3 py-2 text-sm text-[var(--pm-accent)]">
           Form is valid and ready for backend integration.
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-1 flex flex-wrap items-center gap-3 pt-2">
         <Button type="submit">{mode === "create" ? "Create Property" : "Save Changes"}</Button>
         <Link
           href="/properties"
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          className="rounded-lg border border-[var(--pm-border)] px-4 py-2 text-sm font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"
         >
           Cancel
         </Link>

@@ -8,13 +8,13 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 disabled:border-indigo-300 disabled:bg-indigo-300",
+    "border border-[var(--pm-accent)] bg-[var(--pm-accent)] text-white hover:border-[var(--pm-accent-strong)] hover:bg-[var(--pm-accent-strong)] disabled:border-[var(--pm-surface-muted)] disabled:bg-[var(--pm-surface-muted)] disabled:text-[var(--pm-text-secondary)]",
   secondary:
-    "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 disabled:text-slate-400",
+    "border border-[var(--pm-border)] bg-[var(--pm-surface)] text-[var(--pm-text-primary)] hover:bg-[var(--pm-surface-soft)] disabled:text-[var(--pm-text-secondary)]",
   ghost:
-    "border border-transparent bg-transparent text-indigo-700 hover:bg-indigo-50 disabled:text-indigo-300",
+    "border border-transparent bg-transparent text-[var(--pm-info-strong)] hover:bg-[var(--pm-info-soft)] disabled:text-[var(--pm-text-secondary)]",
   danger:
-    "border border-red-600 bg-red-600 text-white hover:bg-red-700 disabled:border-red-300 disabled:bg-red-300",
+    "border border-[var(--pm-danger-strong)] bg-[var(--pm-danger-strong)] text-white hover:bg-[#7f120a] disabled:border-[var(--pm-danger-soft)] disabled:bg-[var(--pm-danger-soft)] disabled:text-[var(--pm-danger-strong)]",
 };
 
 export function Button({

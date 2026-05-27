@@ -1,34 +1,74 @@
+import Link from "next/link";
+
+import { ParkingListTable } from "@/components/parking/ParkingListTable";
 import { ModuleHeader } from "@/components/ui/ModuleHeader";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
 
 const parkingSlots = [
-  { slot: "P-01", tenant: "Ardit Kola", status: "Assigned" },
-  { slot: "P-02", tenant: "Vacant", status: "Available" },
-  { slot: "P-03", tenant: "Eda Leka", status: "Assigned" },
-  { slot: "P-04", tenant: "Visitor", status: "Temporary" },
+  {
+    id: "pk-01",
+    spotCode: "P-01",
+    status: "occupied" as const,
+    assigneeType: "tenant" as const,
+    assigneeName: "Elira Hoxha",
+    parkingCardNumber: "CARD-1022",
+  },
+  {
+    id: "pk-02",
+    spotCode: "P-02",
+    status: "free" as const,
+    assigneeType: "tenant" as const,
+    assigneeName: "",
+    parkingCardNumber: "",
+  },
+  {
+    id: "pk-03",
+    spotCode: "P-03",
+    status: "occupied" as const,
+    assigneeType: "independent" as const,
+    assigneeName: "Erion Kasa",
+    parkingCardNumber: "CARD-3301",
+  },
+  {
+    id: "pk-04",
+    spotCode: "P-04",
+    status: "free" as const,
+    assigneeType: "independent" as const,
+    assigneeName: "",
+    parkingCardNumber: "",
+  },
 ];
 
 export default function ParkingPage() {
+  const occupiedCount = parkingSlots.filter((slot) => slot.status === "occupied").length;
+  const freeCount = parkingSlots.filter((slot) => slot.status === "free").length;
+
   return (
     <div className="space-y-5">
       <ModuleHeader
         title="Parking"
-        description="Track parking slot allocation and temporary visitor access."
+        description="Create and assign parking spots to tenants or independent clients."
+        actions={
+          <Link
+            href="/parking/new"
+            className="rounded-lg border border-[var(--pm-accent)] bg-[var(--pm-accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--pm-accent-strong)]"
+          >
+            Add Spot
+          </Link>
+        }
       />
-      <SurfaceCard title="Parking Slots" subtitle="Current slot occupancy">
-        <ul className="space-y-2">
-          {parkingSlots.map((slot) => (
-            <li
-              key={slot.slot}
-              className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm"
-            >
-              <span className="font-medium text-slate-800">{slot.slot}</span>
-              <span className="text-slate-600">{slot.tenant}</span>
-              <span className="text-slate-500">{slot.status}</span>
-            </li>
-          ))}
-        </ul>
-      </SurfaceCard>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <SurfaceCard title="Total Slots">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{parkingSlots.length}</p>
+        </SurfaceCard>
+        <SurfaceCard title="Occupied">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{occupiedCount}</p>
+        </SurfaceCard>
+        <SurfaceCard title="Free">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{freeCount}</p>
+        </SurfaceCard>
+      </div>
+      <ParkingListTable items={parkingSlots} />
     </div>
   );
 }

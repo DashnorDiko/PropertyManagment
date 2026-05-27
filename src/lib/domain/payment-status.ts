@@ -47,11 +47,11 @@ export function getPaymentState(input: {
 export function paymentStateColor(state: PaymentState): string {
   switch (state) {
     case "pending":
-      return "bg-gray-200 text-gray-700";
+      return "bg-[var(--pm-surface-muted)] text-[var(--pm-info-strong)]";
     case "paid":
-      return "bg-green-200 text-green-800";
+      return "bg-[var(--pm-accent-soft)] text-[var(--pm-accent)]";
     case "overdue":
-      return "bg-red-200 text-red-800";
+      return "bg-[var(--pm-danger-soft)] text-[var(--pm-danger-strong)]";
     default: {
       const exhaustive: never = state;
       return exhaustive;

@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #efeee9;
+  --foreground: #201f23;
+  --pm-surface: #ffffff;
+  --pm-surface-soft: #f6f5f2;
+  --pm-surface-muted: #e3e4ea;
+  --pm-border: #d9d7d2;
+  --pm-text-primary: #201f23;
+  --pm-text-secondary: #596269;
+  --pm-accent: #4c6c5a;
+  --pm-accent-strong: #3f5c4d;
+  --pm-accent-soft: #e6efea;
+  --pm-info-soft: #e3e4ea;
+  --pm-info-strong: #595d75;
+  --pm-danger-soft: #f8e7e5;
+  --pm-danger-strong: #98140b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-pm-surface: var(--pm-surface);
+  --color-pm-surface-soft: var(--pm-surface-soft);
+  --color-pm-surface-muted: var(--pm-surface-muted);
+  --color-pm-border: var(--pm-border);
+  --color-pm-text-primary: var(--pm-text-primary);
+  --color-pm-text-secondary: var(--pm-text-secondary);
+  --color-pm-accent: var(--pm-accent);
+  --color-pm-accent-strong: var(--pm-accent-strong);
+  --color-pm-accent-soft: var(--pm-accent-soft);
+  --color-pm-info-soft: var(--pm-info-soft);
+  --color-pm-info-strong: var(--pm-info-strong);
+  --color-pm-danger-soft: var(--pm-danger-soft);
+  --color-pm-danger-strong: var(--pm-danger-strong);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #16181b;
+    --foreground: #f4f4f1;
+    --pm-surface: #1f2227;
+    --pm-surface-soft: #23262b;
+    --pm-surface-muted: #2d3138;
+    --pm-border: #353b44;
+    --pm-text-primary: #f4f4f1;
+    --pm-text-secondary: #b8bed5;
+    --pm-accent: #a4c8ae;
+    --pm-accent-strong: #c1d8da;
+    --pm-accent-soft: #243129;
+    --pm-info-soft: #30364b;
+    --pm-info-strong: #d4d8ea;
+    --pm-danger-soft: #412421;
+    --pm-danger-strong: #ffb1ab;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
