@@ -3,6 +3,10 @@ export const CURRENCIES = ["EUR", "ALL"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
 const DEFAULT_LOCALE = "sq-AL";
+const CURRENCY_SYMBOL: Record<Currency, string> = {
+  EUR: "€",
+  ALL: "L",
+};
 
 export type CurrencyTotals = Record<Currency, number>;
 
@@ -34,10 +38,19 @@ export function formatCurrency(
   currency: Currency,
   locale = DEFAULT_LOCALE,
 ): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  const sign = amount < 0 ? "-" : "";
+  const absoluteAmount = Math.abs(amount);
+  const [integerPart, decimalPart] = absoluteAmount.toFixed(2).split(".");
+  const groupingSeparator = locale === "sq-AL" ? "." : ",";
+  const decimalSeparator = locale === "sq-AL" ? "," : ".";
+  const groupedIntegerPart = integerPart.replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    groupingSeparator,
+  );
+  const formattedNumber = `${sign}${groupedIntegerPart}${decimalSeparator}${decimalPart}`;
+  const symbol = CURRENCY_SYMBOL[currency];
+
+  return locale === "sq-AL"
+    ? `${formattedNumber}\u00A0${symbol}`
+    : `${symbol}${formattedNumber}`;
 }

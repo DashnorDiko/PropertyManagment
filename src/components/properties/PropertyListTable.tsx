@@ -35,13 +35,23 @@ const statusClassMap: Record<PropertyListItem["status"], string> = {
 export function PropertyListTable({ items }: PropertyListTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [statusSort, setStatusSort] = useState<StatusSort>("none");
+  const [searchTerm, setSearchTerm] = useState("");
+  const normalizedSearch = searchTerm.trim().toLocaleLowerCase();
 
   const visibleItems = useMemo(() => {
     const filtered =
       statusFilter === "all" ? items : items.filter((item) => item.status === statusFilter);
+    const searched = normalizedSearch
+      ? filtered.filter((item) =>
+          [item.unitName, item.locationSubtitle, item.tenantName]
+            .join(" ")
+            .toLocaleLowerCase()
+            .includes(normalizedSearch),
+        )
+      : filtered;
 
     if (statusSort === "none") {
-      return filtered;
+      return searched;
     }
 
     const rankMap: Record<PropertyListItem["status"], number> = {
@@ -51,8 +61,8 @@ export function PropertyListTable({ items }: PropertyListTableProps) {
     };
 
     const direction = statusSort === "asc" ? 1 : -1;
-    return [...filtered].sort((left, right) => (rankMap[left.status] - rankMap[right.status]) * direction);
-  }, [items, statusFilter, statusSort]);
+    return [...searched].sort((left, right) => (rankMap[left.status] - rankMap[right.status]) * direction);
+  }, [items, normalizedSearch, statusFilter, statusSort]);
 
   const toggleStatusSort = () => {
     setStatusSort((current) => {
@@ -64,10 +74,35 @@ export function PropertyListTable({ items }: PropertyListTableProps) {
 
   return (
     <div className="space-y-3">
+      <label className="relative block max-w-sm">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--pm-text-secondary)]"
+        >
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m16 16 4 4" />
+        </svg>
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Kërko sipas njësisë, vendndodhjes ose qiramarrësit"
+          className="w-full rounded-full border border-[var(--pm-border)] bg-[var(--pm-surface-soft)] py-2 pl-9 pr-4 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/25 transition-all duration-200 focus:border-[var(--pm-accent)]/35 focus:bg-[var(--pm-surface)] focus:ring"
+        />
+      </label>
       <div className="flex flex-wrap items-center gap-2">
         {(["all", "occupied", "vacant", "sold"] as const).map((option) => {
           const isActive = statusFilter === option;
-          const label = option === "all" ? "All" : option.charAt(0).toUpperCase() + option.slice(1);
+          const labelMap: Record<typeof option, string> = {
+            all: "Të gjitha",
+            occupied: "E zënë",
+            vacant: "Bosh",
+            sold: "E shitur",
+          };
+          const label = labelMap[option];
 
           return (
             <button
@@ -91,22 +126,22 @@ export function PropertyListTable({ items }: PropertyListTableProps) {
       <table className="min-w-full text-left text-sm">
         <thead className="bg-[var(--pm-surface-soft)] text-xs uppercase tracking-wide text-[var(--pm-text-secondary)]">
           <tr>
-            <th className="px-5 py-3 font-semibold">Unit</th>
+            <th className="px-5 py-3 font-semibold">Njësia</th>
             <th className="px-5 py-3 font-semibold">
               <button
                 type="button"
                 onClick={toggleStatusSort}
                 className="inline-flex items-center gap-1 transition hover:text-[var(--pm-text-primary)]"
               >
-                Status
+                Statusi
                 <span className="text-[10px]">
                   {statusSort === "asc" ? "▲" : statusSort === "desc" ? "▼" : "↕"}
                 </span>
               </button>
             </th>
-            <th className="px-5 py-3 font-semibold">Tenant</th>
-            <th className="px-5 py-3 font-semibold">Rent</th>
-            <th className="px-5 py-3 font-semibold text-right">Actions</th>
+            <th className="px-5 py-3 font-semibold">Qiramarrësi</th>
+            <th className="px-5 py-3 font-semibold">Qiraja</th>
+            <th className="px-5 py-3 font-semibold text-right">Veprime</th>
           </tr>
         </thead>
         <tbody>
@@ -131,7 +166,11 @@ export function PropertyListTable({ items }: PropertyListTableProps) {
                 <span
                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClassMap[property.status]}`}
                 >
-                  {property.status}
+                  {property.status === "occupied"
+                    ? "E zënë"
+                    : property.status === "vacant"
+                      ? "Bosh"
+                      : "E shitur"}
                 </span>
               </td>
               <td className="px-5 py-3 text-[var(--pm-text-secondary)]">{property.tenantName}</td>
@@ -145,7 +184,7 @@ export function PropertyListTable({ items }: PropertyListTableProps) {
                   href={`/properties/${property.id}/edit`}
                   className="rounded-lg border border-[var(--pm-border)] px-3 py-1.5 text-xs font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"
                 >
-                  Edit
+                  Ndrysho
                 </Link>
               </td>
             </tr>
@@ -153,7 +192,7 @@ export function PropertyListTable({ items }: PropertyListTableProps) {
           {visibleItems.length === 0 ? (
             <tr>
               <td colSpan={5} className="px-5 py-6 text-center text-sm text-[var(--pm-text-secondary)]">
-                No properties match this status filter.
+                Nuk ka prona që përputhen me këtë filtër statusi.
               </td>
             </tr>
           ) : null}

@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: property-management-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PM_POSTGRES_DB:-property_management}
+      POSTGRES_USER: ${PM_POSTGRES_USER:-property_user}
+      POSTGRES_PASSWORD: ${PM_POSTGRES_PASSWORD:-property_pass_change_me}
+    ports:
+      - "${PM_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${PM_POSTGRES_USER:-property_user} -d ${PM_POSTGRES_DB:-property_management}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: property-management-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${PM_POSTGRES_DB:-property_management}
+      PGUSER: ${PM_POSTGRES_USER:-property_user}
+      PGPASSWORD: ${PM_POSTGRES_PASSWORD:-property_pass_change_me}
+      PM_MANAGER_USERNAME: ${PM_MANAGER_USERNAME:-manager}
+      PM_MANAGER_PASSWORD: ${PM_MANAGER_PASSWORD:-manager123}
+      PM_SESSION_TIMEOUT_MINUTES: ${PM_SESSION_TIMEOUT_MINUTES:-30}
+    ports:
+      - "${PM_APP_PORT:-3001}:3000"
+
+volumes:
+  postgres_data:

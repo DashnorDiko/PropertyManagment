@@ -3,30 +3,30 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-export type ParkingListItem = {
+export type InternetListItem = {
   id: string;
-  spotCode: string;
+  serviceCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
   assigneeName: string;
-  parkingCardNumber: string;
+  modemSerialNumber: string;
   price: number;
 };
 
-type ParkingListTableProps = {
-  items: ParkingListItem[];
+type InternetListTableProps = {
+  items: InternetListItem[];
 };
 
-type StatusFilter = "all" | ParkingListItem["status"];
-type AssigneeFilter = "all" | ParkingListItem["assigneeType"];
+type StatusFilter = "all" | InternetListItem["status"];
+type AssigneeFilter = "all" | InternetListItem["assigneeType"];
 type StatusSort = "none" | "asc" | "desc";
 
-const statusTone: Record<ParkingListItem["status"], string> = {
+const statusTone: Record<InternetListItem["status"], string> = {
   free: "bg-[var(--pm-accent-soft)] text-[var(--pm-accent)] ring-[var(--pm-accent)]/20",
   occupied: "bg-[var(--pm-surface-muted)] text-[var(--pm-info-strong)] ring-[var(--pm-info-strong)]/20",
 };
 
-export function ParkingListTable({ items }: ParkingListTableProps) {
+export function InternetListTable({ items }: InternetListTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("all");
   const [statusSort, setStatusSort] = useState<StatusSort>("none");
@@ -34,14 +34,15 @@ export function ParkingListTable({ items }: ParkingListTableProps) {
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase();
 
   const visibleItems = useMemo(() => {
-    const filtered = items.filter((spot) => {
-      const statusMatch = statusFilter === "all" || spot.status === statusFilter;
-      const assigneeMatch = assigneeFilter === "all" || spot.assigneeType === assigneeFilter;
+    const filtered = items.filter((service) => {
+      const statusMatch = statusFilter === "all" || service.status === statusFilter;
+      const assigneeMatch = assigneeFilter === "all" || service.assigneeType === assigneeFilter;
       return statusMatch && assigneeMatch;
     });
+
     const searched = normalizedSearch
-      ? filtered.filter((spot) =>
-          [spot.spotCode, spot.assigneeName, spot.parkingCardNumber, String(spot.price)]
+      ? filtered.filter((service) =>
+          [service.serviceCode, service.assigneeName, service.modemSerialNumber, String(service.price)]
             .join(" ")
             .toLocaleLowerCase()
             .includes(normalizedSearch),
@@ -52,7 +53,7 @@ export function ParkingListTable({ items }: ParkingListTableProps) {
       return searched;
     }
 
-    const rankMap: Record<ParkingListItem["status"], number> = {
+    const rankMap: Record<InternetListItem["status"], number> = {
       occupied: 0,
       free: 1,
     };
@@ -88,10 +89,11 @@ export function ParkingListTable({ items }: ParkingListTableProps) {
           type="search"
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Kërko sipas kodit, personit, kartës ose çmimit"
+          placeholder="Kërko sipas kodit, personit, modemit ose çmimit"
           className="w-full rounded-full border border-[var(--pm-border)] bg-[var(--pm-surface-soft)] py-2 pl-9 pr-4 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/25 transition-all duration-200 focus:border-[var(--pm-accent)]/35 focus:bg-[var(--pm-surface)] focus:ring"
         />
       </label>
+
       <div className="flex flex-wrap items-center gap-2">
         {(["all", "occupied", "free"] as const).map((option) => {
           const isActive = statusFilter === option;
@@ -121,11 +123,7 @@ export function ParkingListTable({ items }: ParkingListTableProps) {
         {(["all", "tenant", "independent"] as const).map((option) => {
           const isActive = assigneeFilter === option;
           const label =
-            option === "all"
-              ? "Të gjithë personat"
-              : option === "tenant"
-                ? "Qiramarrës"
-                : "I pavarur";
+            option === "all" ? "Të gjithë personat" : option === "tenant" ? "Qiramarrës" : "I pavarur";
 
           return (
             <button
@@ -149,7 +147,7 @@ export function ParkingListTable({ items }: ParkingListTableProps) {
         <table className="min-w-full text-left text-sm">
           <thead className="bg-[var(--pm-surface-soft)] text-xs uppercase tracking-wide text-[var(--pm-text-secondary)]">
             <tr>
-              <th className="px-5 py-3 font-semibold">Vendi</th>
+              <th className="px-5 py-3 font-semibold">Shërbimi</th>
               <th className="px-5 py-3 font-semibold">
                 <button
                   type="button"
@@ -164,38 +162,34 @@ export function ParkingListTable({ items }: ParkingListTableProps) {
               </th>
               <th className="px-5 py-3 font-semibold">Lloji i Caktimit</th>
               <th className="px-5 py-3 font-semibold">Personi i Caktuar</th>
-              <th className="px-5 py-3 font-semibold">Karta e Parkimit</th>
+              <th className="px-5 py-3 font-semibold">Nr. Modemi</th>
               <th className="px-5 py-3 font-semibold">Çmimi</th>
               <th className="px-5 py-3 font-semibold text-right">Veprime</th>
             </tr>
           </thead>
           <tbody>
-            {visibleItems.map((spot) => (
+            {visibleItems.map((service) => (
               <tr
-                key={spot.id}
+                key={service.id}
                 className="border-t border-[var(--pm-border)]/60 transition hover:bg-[var(--pm-surface-soft)]"
               >
-                <td className="px-5 py-3 font-medium text-[var(--pm-text-primary)]">{spot.spotCode}</td>
+                <td className="px-5 py-3 font-medium text-[var(--pm-text-primary)]">{service.serviceCode}</td>
                 <td className="px-5 py-3">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusTone[spot.status]}`}
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusTone[service.status]}`}
                   >
-                    {spot.status === "occupied" ? "I zënë" : "I lirë"}
+                    {service.status === "occupied" ? "I zënë" : "I lirë"}
                   </span>
                 </td>
                 <td className="px-5 py-3 text-[var(--pm-text-secondary)]">
-                  {spot.assigneeType === "tenant" ? "Qiramarrës" : "I pavarur"}
+                  {service.assigneeType === "tenant" ? "Qiramarrës" : "I pavarur"}
                 </td>
-                <td className="px-5 py-3 text-[var(--pm-text-secondary)]">
-                  {spot.assigneeName || "-"}
-                </td>
-                <td className="px-5 py-3 text-[var(--pm-text-secondary)]">
-                  {spot.parkingCardNumber || "-"}
-                </td>
-                <td className="px-5 py-3 text-[var(--pm-text-secondary)]">{spot.price.toFixed(2)} EUR</td>
+                <td className="px-5 py-3 text-[var(--pm-text-secondary)]">{service.assigneeName || "-"}</td>
+                <td className="px-5 py-3 text-[var(--pm-text-secondary)]">{service.modemSerialNumber || "-"}</td>
+                <td className="px-5 py-3 text-[var(--pm-text-secondary)]">{service.price.toFixed(2)} EUR</td>
                 <td className="px-5 py-3 text-right">
                   <Link
-                    href={`/parking/${spot.id}/edit`}
+                    href={`/internet/${service.id}/edit`}
                     className="rounded-lg border border-[var(--pm-border)] px-3 py-1.5 text-xs font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"
                   >
                     Ndrysho
@@ -206,7 +200,7 @@ export function ParkingListTable({ items }: ParkingListTableProps) {
             {visibleItems.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-6 text-center text-sm text-[var(--pm-text-secondary)]">
-                  Nuk ka vende parkimi që përputhen me filtrat e zgjedhur.
+                  Nuk ka shërbime interneti që përputhen me filtrat e zgjedhur.
                 </td>
               </tr>
             ) : null}

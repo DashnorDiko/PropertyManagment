@@ -53,20 +53,20 @@ function validate(values: PropertyFormValues): PropertyFormErrors {
   const errors: PropertyFormErrors = {};
 
   if (!values.unitName.trim()) {
-    errors.unitName = "Unit name is required.";
+    errors.unitName = "Emri i njësisë është i detyrueshëm.";
   }
 
   if (!values.locationSubtitle.trim()) {
-    errors.locationSubtitle = "Location subtitle is required.";
+    errors.locationSubtitle = "Nënshkrimi i vendndodhjes është i detyrueshëm.";
   }
 
   const rentAmountNumber = Number(values.rentAmount);
   if (!Number.isFinite(rentAmountNumber) || rentAmountNumber < 0) {
-    errors.rentAmount = "Rent cannot be negative.";
+    errors.rentAmount = "Qiraja nuk mund të jetë negative.";
   }
 
   if ((values.status === "occupied" || values.status === "sold") && !values.tenantName.trim()) {
-    errors.tenantName = "Tenant name is required when status is occupied or sold.";
+    errors.tenantName = "Emri i qiramarrësit është i detyrueshëm kur statusi është i zënë ose i shitur.";
   }
 
   return errors;
@@ -113,8 +113,8 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
 
   const helperMessage =
     mode === "create"
-      ? "Create a property record with unit name, location subtitle, rent, and status. Submission is local until backend APIs are connected."
-      : "Update unit details, status, and rent settings. Validation mirrors create flow and is backend-ready.";
+      ? "Krijo një regjistrim prone me emrin e njësisë, vendndodhjen, qiranë dhe statusin. Ruajtja mbetet lokale derisa të lidhen API-të e backend-it."
+      : "Përditëso detajet e njësisë, statusin dhe konfigurimin e qirasë. Validimi ndjek të njëjtin rrjedhë si krijimi.";
 
   return (
     <form
@@ -124,11 +124,11 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
       <p className="text-sm text-[var(--pm-text-secondary)]">{helperMessage}</p>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <label className="space-y-1">
-          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Unit Name</span>
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Emri i Njësisë</span>
           <input
             value={values.unitName}
             onChange={onFieldChange("unitName")}
-            placeholder="Apartment 1"
+            placeholder="Apartamenti 1"
             className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           />
           {errors.unitName ? (
@@ -138,12 +138,12 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
 
         <label className="space-y-1">
           <span className="text-sm font-medium text-[var(--pm-text-secondary)]">
-            Location Subtitle
+            Nënshkrimi i Vendndodhjes
           </span>
           <input
             value={values.locationSubtitle}
             onChange={onFieldChange("locationSubtitle")}
-            placeholder="Building A, Staircase 1, Floor 2"
+            placeholder="Godina A, Shkalla 1, Kati 2"
             className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           />
           {errors.locationSubtitle ? (
@@ -153,7 +153,7 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
 
         <label className="space-y-1">
           <span className="text-sm font-medium text-[var(--pm-text-secondary)]">
-            Rent Amount
+            Shuma e Qirasë
           </span>
           <div className="flex items-center gap-2">
             <input
@@ -193,25 +193,25 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
         </label>
 
         <label className="space-y-1">
-          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Status</span>
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Statusi</span>
           <select
             value={values.status}
             onChange={onFieldChange("status")}
             className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           >
-            <option value="vacant">Vacant</option>
-            <option value="occupied">Occupied</option>
-            <option value="sold">Sold</option>
+            <option value="vacant">Bosh</option>
+            <option value="occupied">E zënë</option>
+            <option value="sold">E shitur</option>
           </select>
         </label>
       </div>
 
       <label className="space-y-1">
-        <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Tenant Name</span>
+        <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Emri i Qiramarrësit</span>
         <input
           value={values.tenantName}
           onChange={onFieldChange("tenantName")}
-          placeholder={values.status === "vacant" ? "Optional while vacant" : "Required"}
+          placeholder={values.status === "vacant" ? "Opsionale kur është bosh" : "E detyrueshme"}
           className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
         />
         {errors.tenantName ? (
@@ -221,17 +221,17 @@ export function PropertyForm({ mode, initialValues }: PropertyFormProps) {
 
       {isSubmitted && Object.keys(errors).length === 0 ? (
         <p className="rounded-lg bg-[var(--pm-accent-soft)] px-3 py-2 text-sm text-[var(--pm-accent)]">
-          Form is valid and ready for backend integration.
+          Forma është e vlefshme dhe gati për integrim me backend.
         </p>
       ) : null}
 
       <div className="mt-1 flex flex-wrap items-center gap-3 pt-2">
-        <Button type="submit">{mode === "create" ? "Create Property" : "Save Changes"}</Button>
+        <Button type="submit">{mode === "create" ? "Krijo Pronën" : "Ruaj Ndryshimet"}</Button>
         <Link
           href="/properties"
           className="rounded-lg border border-[var(--pm-border)] px-4 py-2 text-sm font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"
         >
-          Cancel
+          Anulo
         </Link>
       </div>
     </form>

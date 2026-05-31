@@ -49,6 +49,8 @@ export interface Payment {
   currency: Currency;
   tenantId?: string;
   propertyId?: string;
+  chargeType?: ChargeType;
+  coveredMonth?: string; // Format: YYYY-MM
 }
 
 export interface ParkingSpot {

@@ -27,7 +27,7 @@ export function OccupiedPropertyCard({
     : hasOverdue
       ? "bg-[var(--pm-danger-soft)] text-[var(--pm-danger-strong)]"
       : "bg-[var(--pm-surface-muted)] text-[var(--pm-info-strong)]";
-  const statusLabel = allPaid ? "All Paid" : hasOverdue ? "Overdue" : "Pending";
+  const statusLabel = allPaid ? "Të gjitha të paguara" : hasOverdue ? "Vonuar" : "Në pritje";
 
   return (
     <article className={`rounded-xl border bg-[var(--pm-surface)] shadow-sm ${cardTone}`}>
@@ -42,7 +42,7 @@ export function OccupiedPropertyCard({
         </div>
         <p className="text-sm text-[var(--pm-text-secondary)]">{property.subtitle}</p>
         <p className="mt-1 text-sm text-[var(--pm-text-secondary)]">
-          Tenant: {tenant?.name ?? "Unassigned"}
+          Qiramarrësi: {tenant?.name ?? "Pa caktuar"}
         </p>
       </header>
       <ul className="space-y-2 bg-[var(--pm-surface-soft)] px-4 py-4">
@@ -83,7 +83,7 @@ export function OccupiedPropertyCard({
           type="button"
           className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface-soft)] px-3 py-2 text-sm font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-muted)] hover:text-[var(--pm-text-primary)]"
         >
-          {allPaid ? "View Details" : "Pay Now"}
+          {allPaid ? "Shiko Detajet" : "Paguaj Tani"}
         </button>
       </footer>
     </article>

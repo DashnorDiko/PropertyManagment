@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type ManagerNavigationItem = {
+export type ManagerNavigationItem = {
   href: string;
   label: string;
   icon:

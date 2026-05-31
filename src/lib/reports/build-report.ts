@@ -1,4 +1,10 @@
-import { chargeSchedules, payments, properties, tenancies, tenants } from "@/lib/data/mock";
+import {
+  chargeSchedules,
+  payments,
+  properties,
+  tenancies,
+  tenants,
+} from "@/lib/data/manager";
 import { emptyCurrencyTotals, addToTotals } from "@/lib/domain/currency";
 import { propertyOccupancyDays, tenantRevenue } from "@/lib/domain/statistics";
 

@@ -1,6 +1,11 @@
 import type { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 
 import { fetchPaymentsForRange } from "../../../../lib/data/reports";
+import {
+  MANAGER_SESSION_COOKIE,
+  readSessionToken,
+} from "../../../../lib/auth/manager-auth";
 import { calculateReportStatistics } from "../../../../lib/domain/statistics";
 import { generateReportPdf } from "../../../../lib/reports/pdf";
 
@@ -43,6 +48,17 @@ function createFilename(periodLabel: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    const cookieStore = await cookies();
+    const session = readSessionToken(
+      cookieStore.get(MANAGER_SESSION_COOKIE)?.value,
+    );
+    if (!session) {
+      return Response.json(
+        { error: "Unauthorized", message: "Kërkohet hyrja në sistem." },
+        { status: 401 },
+      );
+    }
+
     const period = getMonthlyPeriod(request.nextUrl.searchParams);
     const format = request.nextUrl.searchParams.get("format");
     const payments = await fetchPaymentsForRange({

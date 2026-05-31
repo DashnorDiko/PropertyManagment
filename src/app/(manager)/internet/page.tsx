@@ -1,49 +1,53 @@
+import Link from "next/link";
+
+import { InternetListTable } from "@/components/internet/InternetListTable";
 import { ModuleHeader } from "@/components/ui/ModuleHeader";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
 
-const internetPlans = [
-  { provider: "FiberOne", speed: "300 Mbps", units: 14 },
-  { provider: "FiberOne", speed: "100 Mbps", units: 8 },
-  { provider: "SkyNet", speed: "500 Mbps", units: 5 },
-];
+const internetServices: {
+  id: string;
+  serviceCode: string;
+  status: "free" | "occupied";
+  assigneeType: "tenant" | "independent";
+  assigneeName: string;
+  modemSerialNumber: string;
+  price: number;
+}[] = [];
 
 export default function InternetPage() {
-  const totalUnits = internetPlans.reduce((sum, plan) => sum + plan.units, 0);
+  const occupiedCount = internetServices.filter((item) => item.status === "occupied").length;
+  const freeCount = internetServices.filter((item) => item.status === "free").length;
+  const monthlyTotal = internetServices.reduce((sum, item) => sum + item.price, 0);
 
   return (
     <div className="space-y-5">
       <ModuleHeader
-        title="Internet Services"
-        description="Overview of provider plans assigned to building units."
+        title="Shërbimet e Internetit"
+        description="Krijo dhe cakto shërbime interneti për qiramarrës ose persona të pavarur."
+        actions={
+          <Link
+            href="/internet/new"
+            className="rounded-lg border border-[var(--pm-accent)] bg-[var(--pm-accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--pm-accent-strong)]"
+          >
+            Shto Shërbim
+          </Link>
+        }
       />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <SurfaceCard title="Providers">
-          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">
-            {new Set(internetPlans.map((plan) => plan.provider)).size}
-          </p>
+      <div className="grid gap-4 sm:grid-cols-4">
+        <SurfaceCard title="Totali i Shërbimeve">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{internetServices.length}</p>
         </SurfaceCard>
-        <SurfaceCard title="Plans">
-          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{internetPlans.length}</p>
+        <SurfaceCard title="Të Zëna">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{occupiedCount}</p>
         </SurfaceCard>
-        <SurfaceCard title="Linked Units">
-          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{totalUnits}</p>
+        <SurfaceCard title="Të Lira">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{freeCount}</p>
+        </SurfaceCard>
+        <SurfaceCard title="Totali Mujor">
+          <p className="text-3xl font-bold text-[var(--pm-text-primary)]">{monthlyTotal.toFixed(2)} EUR</p>
         </SurfaceCard>
       </div>
-
-      <SurfaceCard title="Provider Distribution">
-        <ul className="space-y-2">
-          {internetPlans.map((plan) => (
-            <li
-              key={`${plan.provider}-${plan.speed}`}
-              className="grid grid-cols-3 items-center rounded-lg border border-[var(--pm-border)]/70 bg-[var(--pm-surface-soft)] px-3 py-2 text-sm"
-            >
-              <span className="font-medium text-[var(--pm-text-primary)]">{plan.provider}</span>
-              <span className="text-[var(--pm-text-secondary)]">{plan.speed}</span>
-              <span className="text-[var(--pm-text-secondary)]">{plan.units} units</span>
-            </li>
-          ))}
-        </ul>
-      </SurfaceCard>
+      <InternetListTable items={internetServices} />
     </div>
   );
 }

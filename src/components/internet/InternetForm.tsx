@@ -6,63 +6,63 @@ import type { ChangeEvent, FormEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
 
-type ParkingStatus = "free" | "occupied";
+type InternetStatus = "free" | "occupied";
 type AssigneeType = "tenant" | "independent";
 
-export type ParkingFormValues = {
-  spotCode: string;
-  status: ParkingStatus;
+export type InternetFormValues = {
+  serviceCode: string;
+  status: InternetStatus;
   assigneeType: AssigneeType;
   assigneeName: string;
-  parkingCardNumber: string;
+  modemSerialNumber: string;
   price: string;
 };
 
-type ParkingFormProps = {
+type InternetFormProps = {
   mode: "create" | "edit";
-  initialValues?: Partial<ParkingFormValues>;
+  initialValues?: Partial<InternetFormValues>;
 };
 
-type ParkingFormErrors = Partial<Record<keyof ParkingFormValues, string>>;
+type InternetFormErrors = Partial<Record<keyof InternetFormValues, string>>;
 
-const defaultValues: ParkingFormValues = {
-  spotCode: "",
+const defaultValues: InternetFormValues = {
+  serviceCode: "",
   status: "free",
   assigneeType: "tenant",
   assigneeName: "",
-  parkingCardNumber: "",
+  modemSerialNumber: "",
   price: "",
 };
 
-function sanitizeInput(values: ParkingFormValues): ParkingFormValues {
-  const sanitized: ParkingFormValues = {
+function sanitizeInput(values: InternetFormValues): InternetFormValues {
+  const sanitized: InternetFormValues = {
     ...values,
-    spotCode: values.spotCode.trim().toUpperCase(),
+    serviceCode: values.serviceCode.trim().toUpperCase(),
     assigneeName: values.assigneeName.trim(),
-    parkingCardNumber: values.parkingCardNumber.trim().toUpperCase(),
+    modemSerialNumber: values.modemSerialNumber.trim().toUpperCase(),
   };
 
   if (sanitized.status === "free") {
     sanitized.assigneeName = "";
-    sanitized.parkingCardNumber = "";
+    sanitized.modemSerialNumber = "";
   }
 
   return sanitized;
 }
 
-function validate(values: ParkingFormValues): ParkingFormErrors {
-  const errors: ParkingFormErrors = {};
+function validate(values: InternetFormValues): InternetFormErrors {
+  const errors: InternetFormErrors = {};
 
-  if (!values.spotCode.trim()) {
-    errors.spotCode = "Kodi i vendit është i detyrueshëm.";
+  if (!values.serviceCode.trim()) {
+    errors.serviceCode = "Kodi i shërbimit është i detyrueshëm.";
   }
 
   if (values.status === "occupied" && !values.assigneeName.trim()) {
-    errors.assigneeName = "Emri i personit është i detyrueshëm për vendet e zëna.";
+    errors.assigneeName = "Emri i personit është i detyrueshëm kur shërbimi është i zënë.";
   }
 
-  if (values.status === "occupied" && !values.parkingCardNumber.trim()) {
-    errors.parkingCardNumber = "Numri i kartës së parkimit është i detyrueshëm për vendet e zëna.";
+  if (values.status === "occupied" && !values.modemSerialNumber.trim()) {
+    errors.modemSerialNumber = "Numri i modemit është i detyrueshëm kur shërbimi është i zënë.";
   }
 
   const priceNumber = Number(values.price);
@@ -73,18 +73,18 @@ function validate(values: ParkingFormValues): ParkingFormErrors {
   return errors;
 }
 
-export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
-  const mergedInitialValues = useMemo<ParkingFormValues>(
+export function InternetForm({ mode, initialValues }: InternetFormProps) {
+  const mergedInitialValues = useMemo<InternetFormValues>(
     () => ({ ...defaultValues, ...initialValues }),
     [initialValues],
   );
 
-  const [values, setValues] = useState<ParkingFormValues>(mergedInitialValues);
-  const [errors, setErrors] = useState<ParkingFormErrors>({});
+  const [values, setValues] = useState<InternetFormValues>(mergedInitialValues);
+  const [errors, setErrors] = useState<InternetFormErrors>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const onFieldChange =
-    (field: keyof ParkingFormValues) =>
+    (field: keyof InternetFormValues) =>
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
       const fieldValue = event.target.value;
       const nextValues = {
@@ -94,7 +94,7 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
 
       if (field === "status" && fieldValue === "free") {
         nextValues.assigneeName = "";
-        nextValues.parkingCardNumber = "";
+        nextValues.modemSerialNumber = "";
       }
 
       setValues(nextValues);
@@ -115,8 +115,8 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
 
   const helperMessage =
     mode === "create"
-      ? "Krijo një vend parkimi me çmim dhe caktoje për qiramarrës ose person të pavarur."
-      : "Përditëso caktimin e vendit, statusin, çmimin dhe të dhënat e kartës së parkimit.";
+      ? "Krijo një shërbim interneti me çmim dhe caktoje për qiramarrës ose person të pavarur."
+      : "Përditëso caktimin e shërbimit, statusin, çmimin dhe numrin e modemit.";
 
   return (
     <form
@@ -127,15 +127,15 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <label className="space-y-1">
-          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Kodi i Vendit</span>
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Kodi i Shërbimit</span>
           <input
-            value={values.spotCode}
-            onChange={onFieldChange("spotCode")}
-            placeholder="P-01"
+            value={values.serviceCode}
+            onChange={onFieldChange("serviceCode")}
+            placeholder="NET-01"
             className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           />
-          {errors.spotCode ? (
-            <p className="text-xs text-[var(--pm-danger-strong)]">{errors.spotCode}</p>
+          {errors.serviceCode ? (
+            <p className="text-xs text-[var(--pm-danger-strong)]">{errors.serviceCode}</p>
           ) : null}
         </label>
 
@@ -171,7 +171,7 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
             step="0.01"
             value={values.price}
             onChange={onFieldChange("price")}
-            placeholder="45"
+            placeholder="25"
             className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
           />
           {errors.price ? (
@@ -191,20 +191,20 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
             <p className="text-xs text-[var(--pm-danger-strong)]">{errors.assigneeName}</p>
           ) : null}
         </label>
-      </div>
 
-      <label className="space-y-1">
-        <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Numri i Kartës së Parkimit</span>
-        <input
-          value={values.parkingCardNumber}
-          onChange={onFieldChange("parkingCardNumber")}
-          placeholder={values.status === "free" ? "Opsionale kur është i lirë" : "E detyrueshme"}
-          className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
-        />
-        {errors.parkingCardNumber ? (
-          <p className="text-xs text-[var(--pm-danger-strong)]">{errors.parkingCardNumber}</p>
-        ) : null}
-      </label>
+        <label className="space-y-1">
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Numri i Modemit</span>
+          <input
+            value={values.modemSerialNumber}
+            onChange={onFieldChange("modemSerialNumber")}
+            placeholder={values.status === "free" ? "Opsionale kur është i lirë" : "E detyrueshme"}
+            className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring"
+          />
+          {errors.modemSerialNumber ? (
+            <p className="text-xs text-[var(--pm-danger-strong)]">{errors.modemSerialNumber}</p>
+          ) : null}
+        </label>
+      </div>
 
       {isSubmitted && Object.keys(errors).length === 0 ? (
         <p className="rounded-lg bg-[var(--pm-accent-soft)] px-3 py-2 text-sm text-[var(--pm-accent)]">
@@ -213,9 +213,9 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
       ) : null}
 
       <div className="mt-1 flex flex-wrap items-center gap-3 pt-2">
-        <Button type="submit">{mode === "create" ? "Krijo Vendin" : "Ruaj Ndryshimet"}</Button>
+        <Button type="submit">{mode === "create" ? "Krijo Shërbimin" : "Ruaj Ndryshimet"}</Button>
         <Link
-          href="/parking"
+          href="/internet"
           className="rounded-lg border border-[var(--pm-border)] px-4 py-2 text-sm font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"
         >
           Anulo

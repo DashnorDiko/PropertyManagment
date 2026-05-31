@@ -12,27 +12,27 @@ type StatusVisual = {
 
 const statusMap: Record<ChargeStatus, StatusVisual> = {
   paid: {
-    label: "Paid",
+    label: "E paguar",
     className:
       "bg-[var(--pm-accent-soft)] text-[var(--pm-accent)] ring-[var(--pm-accent)]/20",
   },
   pending: {
-    label: "Pending",
+    label: "Në pritje",
     className:
       "bg-[var(--pm-surface-muted)] text-[var(--pm-info-strong)] ring-[var(--pm-info-strong)]/20",
   },
   partial: {
-    label: "Partial",
+    label: "Pjesërisht",
     className:
       "bg-[var(--pm-info-soft)] text-[var(--pm-info-strong)] ring-[var(--pm-info-strong)]/20",
   },
   overdue: {
-    label: "Overdue",
+    label: "Vonuar",
     className:
       "bg-[var(--pm-danger-soft)] text-[var(--pm-danger-strong)] ring-[var(--pm-danger-strong)]/20",
   },
   waived: {
-    label: "Waived",
+    label: "Falur",
     className:
       "bg-[var(--pm-surface-soft)] text-[var(--pm-text-secondary)] ring-[var(--pm-border)]",
   },

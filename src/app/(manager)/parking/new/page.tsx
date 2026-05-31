@@ -5,8 +5,8 @@ export default function NewParkingSpotPage() {
   return (
     <div className="space-y-5">
       <ModuleHeader
-        title="New Parking Spot"
-        description="Create a parking spot and assign it to a tenant or an independent person."
+        title="Vend i Ri Parkimi"
+        description="Krijo një vend parkimi dhe caktoje për qiramarrës ose person të pavarur."
       />
       <ParkingForm mode="create" />
     </div>
