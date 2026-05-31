@@ -3,18 +3,10 @@ import Link from "next/link";
 import { PropertyListTable } from "@/components/properties/PropertyListTable";
 import { ModuleHeader } from "@/components/ui/ModuleHeader";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
+import { listProperties } from "@/lib/data/properties";
 
-const propertyRows: {
-  id: string;
-  unitName: string;
-  locationSubtitle: string;
-  status: "vacant" | "occupied" | "sold";
-  tenantName: string;
-  rentAmount?: number;
-  rentCurrency: "EUR" | "ALL";
-}[] = [];
-
-export default function PropertiesPage() {
+export default async function PropertiesPage() {
+  const propertyRows = await listProperties();
   const occupiedCount = propertyRows.filter((item) => item.status === "occupied").length;
   const vacantCount = propertyRows.filter((item) => item.status === "vacant").length;
   const soldCount = propertyRows.filter((item) => item.status === "sold").length;

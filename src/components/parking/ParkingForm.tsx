@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
@@ -74,6 +75,7 @@ function validate(values: ParkingFormValues): ParkingFormErrors {
 }
 
 export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
+  const router = useRouter();
   const mergedInitialValues = useMemo<ParkingFormValues>(
     () => ({ ...defaultValues, ...initialValues }),
     [initialValues],
@@ -82,6 +84,8 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
   const [values, setValues] = useState<ParkingFormValues>(mergedInitialValues);
   const [errors, setErrors] = useState<ParkingFormErrors>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const onFieldChange =
     (field: keyof ParkingFormValues) =>
@@ -103,7 +107,7 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
       }
     };
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const sanitizedValues = sanitizeInput(values);
     const validationErrors = validate(sanitizedValues);
@@ -111,11 +115,49 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
     setValues(sanitizedValues);
     setErrors(validationErrors);
     setIsSubmitted(true);
+    setSubmitError(null);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
+    if (mode === "edit") {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = await fetch("/api/parking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(sanitizedValues),
+      });
+
+      if (!response.ok) {
+        const responseBody = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        const message =
+          responseBody?.message ??
+          "Dështoi ruajtja e vendit të parkimit. Provo përsëri.";
+        setSubmitError(message);
+        return;
+      }
+
+      router.push("/parking");
+      router.refresh();
+    } catch {
+      setSubmitError("Ndodhi një gabim në rrjet. Provo përsëri.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const helperMessage =
     mode === "create"
-      ? "Krijo një vend parkimi me çmim dhe caktoje për qiramarrës ose person të pavarur."
+      ? "Krijo një vend parkimi me çmim dhe caktoje për qiramarrës ose person të pavarur. Ruajtja bëhet direkt në bazën e të dhënave."
       : "Përditëso caktimin e vendit, statusin, çmimin dhe të dhënat e kartës së parkimit.";
 
   return (
@@ -208,12 +250,25 @@ export function ParkingForm({ mode, initialValues }: ParkingFormProps) {
 
       {isSubmitted && Object.keys(errors).length === 0 ? (
         <p className="rounded-lg bg-[var(--pm-accent-soft)] px-3 py-2 text-sm text-[var(--pm-accent)]">
-          Forma është e vlefshme dhe gati për integrim me backend.
+          {mode === "create"
+            ? "Forma është e vlefshme. Po ruhet në sistem."
+            : "Forma është e vlefshme dhe gati për ruajtje."}
+        </p>
+      ) : null}
+      {submitError ? (
+        <p className="rounded-lg bg-[var(--pm-danger-soft)] px-3 py-2 text-sm text-[var(--pm-danger-strong)]">
+          {submitError}
         </p>
       ) : null}
 
       <div className="mt-1 flex flex-wrap items-center gap-3 pt-2">
-        <Button type="submit">{mode === "create" ? "Krijo Vendin" : "Ruaj Ndryshimet"}</Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting
+            ? "Duke ruajtur..."
+            : mode === "create"
+              ? "Krijo Vendin"
+              : "Ruaj Ndryshimet"}
+        </Button>
         <Link
           href="/parking"
           className="rounded-lg border border-[var(--pm-border)] px-4 py-2 text-sm font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"

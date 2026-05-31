@@ -1,26 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import {
-  getActiveTenancyForProperty,
-  getTenantById,
-  internetAccounts,
-  managerSettings,
-  parkingSpots,
-  payments,
-  properties,
-} from "@/lib/data/manager";
+import { ManagerContentSkeleton } from "@/components/layout/ManagerContentSkeleton";
 import { ApartmentInfoModal } from "@/components/status/ApartmentInfoModal";
 import { BulkPayModal } from "@/components/status/BulkPayModal";
 import { addToTotals, createCurrencyTotals, formatCurrency } from "@/lib/domain/currency";
 import { formatMonthYearLabelSq } from "@/lib/domain/date-format";
-import { buildPortfolioStats } from "@/lib/domain/statistics";
 import type { ChargeSchedule, ChargeType, Payment } from "@/lib/domain/types";
 
 type RowStatus = "pending" | "clear";
 type StatusFilter = "all" | RowStatus;
 type StatusTab = "apartments" | "parking" | "internet";
+
+type PropertyStatusRow = {
+  id: string;
+  apartmentName: string;
+  subtitle: string;
+  status: "occupied" | "empty" | "sold";
+  tenantName: string;
+  rentAmount: number;
+  rentCurrency: "EUR" | "ALL";
+};
+
+type ParkingStatusRow = {
+  id: string;
+  spotCode: string;
+  status: "free" | "occupied";
+  assigneeType: "tenant" | "independent";
+  assigneeName: string;
+  price: number;
+};
+
+type InternetStatusRow = {
+  id: string;
+  serviceCode: string;
+  status: "free" | "occupied";
+  assigneeType: "tenant" | "independent";
+  assigneeName: string;
+  price: number;
+};
+
+type PropertyApiRow = {
+  id: string;
+  unitName: string;
+  locationSubtitle: string;
+  status: "vacant" | "occupied" | "sold";
+  tenantName: string;
+  rentAmount?: number;
+  rentCurrency: "EUR" | "ALL";
+};
+
+type ParkingApiRow = {
+  id: string;
+  spotCode: string;
+  status: "free" | "occupied";
+  assigneeType: "tenant" | "independent";
+  assigneeName: string;
+  price: number;
+};
+
+type InternetApiRow = {
+  id: string;
+  serviceCode: string;
+  status: "free" | "occupied";
+  assigneeType: "tenant" | "independent";
+  assigneeName: string;
+  price: number;
+};
+
+type ManagerSettingsApiRow = {
+  administrationFee: number;
+  administrationCurrency: "EUR" | "ALL";
+};
+
+type PaymentApiRow = Payment;
+
+function normalizeName(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
 
 function chargeTypeLabel(type: string): string {
   switch (type) {
@@ -52,14 +110,108 @@ export default function StatusPage() {
   const [activeTab, setActiveTab] = useState<StatusTab>("apartments");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [properties, setProperties] = useState<PropertyStatusRow[]>([]);
+  const [parkingServices, setParkingServices] = useState<ParkingStatusRow[]>([]);
+  const [internetServices, setInternetServices] = useState<InternetStatusRow[]>([]);
+  const [managerSettings, setManagerSettings] = useState<ManagerSettingsApiRow>({
+    administrationFee: 0,
+    administrationCurrency: "ALL",
+  });
+  const [paymentsFromDb, setPaymentsFromDb] = useState<Payment[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const portfolioStats = buildPortfolioStats(properties);
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadDashboardData() {
+      try {
+        const [
+          propertiesResponse,
+          parkingResponse,
+          internetResponse,
+          managerSettingsResponse,
+          paymentLogsResponse,
+        ] = await Promise.all([
+          fetch("/api/properties"),
+          fetch("/api/parking"),
+          fetch("/api/internet"),
+          fetch("/api/manager-settings"),
+          fetch("/api/payment-logs"),
+        ]);
+
+        if (
+          !propertiesResponse.ok ||
+          !parkingResponse.ok ||
+          !internetResponse.ok ||
+          !managerSettingsResponse.ok
+          || !paymentLogsResponse.ok
+        ) {
+          return;
+        }
+
+        const [
+          propertiesBody,
+          parkingBody,
+          internetBody,
+          managerSettingsBody,
+          paymentLogsBody,
+        ] = await Promise.all([
+          propertiesResponse.json() as Promise<{ data?: PropertyApiRow[] }>,
+          parkingResponse.json() as Promise<{ data?: ParkingApiRow[] }>,
+          internetResponse.json() as Promise<{ data?: InternetApiRow[] }>,
+          managerSettingsResponse.json() as Promise<{ data?: ManagerSettingsApiRow }>,
+          paymentLogsResponse.json() as Promise<{ data?: PaymentApiRow[] }>,
+        ]);
+
+        if (isCancelled) {
+          return;
+        }
+
+        setProperties(
+          (propertiesBody.data ?? []).map((property) => ({
+            id: property.id,
+            apartmentName: property.unitName,
+            subtitle: property.locationSubtitle,
+            status: property.status === "vacant" ? "empty" : property.status,
+            tenantName: property.tenantName,
+            rentAmount: property.rentAmount ?? 0,
+            rentCurrency: property.rentCurrency,
+          })),
+        );
+        setParkingServices(parkingBody.data ?? []);
+        setInternetServices(internetBody.data ?? []);
+        if (managerSettingsBody.data) {
+          setManagerSettings(managerSettingsBody.data);
+        }
+        setPaymentsFromDb(paymentLogsBody.data ?? []);
+      } catch {
+        // Keep empty-state fallback on dashboard if data fetch fails.
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingData(false);
+        }
+      }
+    }
+
+    loadDashboardData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const portfolioStats = {
+    totalProperties: properties.length,
+    occupied: properties.filter((property) => property.status === "occupied").length,
+    empty: properties.filter((property) => property.status === "empty").length,
+  };
+
   const now = new Date();
   const currentYear = now.getUTCFullYear();
   const currentMonthKey = now.toISOString().slice(0, 7);
   const currentMonthLabel = formatMonthYearLabelSq(now);
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase();
-  const paymentLedger = [...payments, ...loggedPayments];
+  const paymentLedger = [...paymentsFromDb, ...loggedPayments];
   const coverageMap = new Map<string, string>();
 
   paymentLedger.forEach((payment) => {
@@ -101,15 +253,43 @@ export default function StatusPage() {
       paidAt: coverageMap.get(`${propertyId}-${chargeType}-${month.monthKey}`),
     }));
 
+  const matchedParkingServiceIds = new Set<string>();
+  const matchedInternetServiceIds = new Set<string>();
+
   const occupiedRows = properties
     .filter((property) => property.status === "occupied")
     .map((property) => {
-      const tenancy = getActiveTenancyForProperty(property.id);
-      const tenant = getTenantById(tenancy?.tenantId);
-      const tenantId = tenancy?.tenantId;
-      const parkingPlan = parkingSpots.find((spot) => spot.tenantId && spot.tenantId === tenantId);
-      const internetPlan = internetAccounts.find((account) => account.tenantId && account.tenantId === tenantId);
-      const rentSchedules = buildSchedules(property.id, tenantId, "rent", 350, "EUR");
+      const tenantId = undefined;
+      const normalizedTenantName = normalizeName(property.tenantName);
+      const parkingPlan =
+        normalizedTenantName.length > 0
+          ? parkingServices.find(
+              (spot) =>
+                spot.status === "occupied" &&
+                normalizeName(spot.assigneeName) === normalizedTenantName,
+            )
+          : undefined;
+      const internetPlan =
+        normalizedTenantName.length > 0
+          ? internetServices.find(
+              (service) =>
+                service.status === "occupied" &&
+                normalizeName(service.assigneeName) === normalizedTenantName,
+            )
+          : undefined;
+      if (parkingPlan) {
+        matchedParkingServiceIds.add(parkingPlan.id);
+      }
+      if (internetPlan) {
+        matchedInternetServiceIds.add(internetPlan.id);
+      }
+      const rentSchedules = buildSchedules(
+        property.id,
+        tenantId,
+        "rent",
+        property.rentAmount,
+        property.rentCurrency,
+      );
       const adminSchedules = buildSchedules(
         property.id,
         tenantId,
@@ -118,10 +298,10 @@ export default function StatusPage() {
         managerSettings.administrationCurrency,
       );
       const parkingSchedules = parkingPlan
-        ? buildSchedules(property.id, tenantId, "parking", parkingPlan.rentAmount, parkingPlan.currency)
+        ? buildSchedules(property.id, tenantId, "parking", parkingPlan.price, "EUR")
         : [];
       const internetSchedules = internetPlan
-        ? buildSchedules(property.id, tenantId, "internet", internetPlan.rentAmount, internetPlan.currency)
+        ? buildSchedules(property.id, tenantId, "internet", internetPlan.price, "EUR")
         : [];
       const charges = [...rentSchedules, ...adminSchedules, ...parkingSchedules, ...internetSchedules];
       const unpaidCharges = charges.filter((charge) => !charge.paidAt);
@@ -134,7 +314,7 @@ export default function StatusPage() {
         subtitle: property.subtitle,
         status: property.status,
         tenantId,
-        tenant: tenant?.name ?? "Pa caktuar",
+        tenant: property.tenantName || "Pa caktuar",
         charges,
         unpaidCharges,
         hasParkingService,
@@ -146,6 +326,54 @@ export default function StatusPage() {
           .filter(
             (payment) => payment.propertyId === property.id && (tenantId ? payment.tenantId === tenantId : false),
           )
+          .toSorted((left, right) => right.date.localeCompare(left.date)),
+      };
+    });
+
+  const standaloneParkingRows = parkingServices
+    .filter((service) => service.status === "occupied" && !matchedParkingServiceIds.has(service.id))
+    .map((service) => {
+      const charges = buildSchedules(service.id, undefined, "parking", service.price, "EUR");
+      const unpaidCharges = charges.filter((charge) => !charge.paidAt);
+
+      return {
+        propertyId: service.id,
+        unit: `Parkim ${service.spotCode}`,
+        subtitle: service.assigneeType === "independent" ? "Shërbim i pavarur" : "Shërbim parkimi",
+        status: "occupied" as const,
+        tenantId: undefined,
+        tenant: service.assigneeName || "Pa caktuar",
+        charges,
+        unpaidCharges,
+        hasParkingService: true,
+        hasInternetService: false,
+        tenantChargeHistory: charges.toSorted((left, right) => right.dueDate.localeCompare(left.dueDate)),
+        tenantPaymentHistory: paymentLedger
+          .filter((payment) => payment.propertyId === service.id)
+          .toSorted((left, right) => right.date.localeCompare(left.date)),
+      };
+    });
+
+  const standaloneInternetRows = internetServices
+    .filter((service) => service.status === "occupied" && !matchedInternetServiceIds.has(service.id))
+    .map((service) => {
+      const charges = buildSchedules(service.id, undefined, "internet", service.price, "EUR");
+      const unpaidCharges = charges.filter((charge) => !charge.paidAt);
+
+      return {
+        propertyId: service.id,
+        unit: `Internet ${service.serviceCode}`,
+        subtitle: service.assigneeType === "independent" ? "Shërbim i pavarur" : "Shërbim interneti",
+        status: "occupied" as const,
+        tenantId: undefined,
+        tenant: service.assigneeName || "Pa caktuar",
+        charges,
+        unpaidCharges,
+        hasParkingService: false,
+        hasInternetService: true,
+        tenantChargeHistory: charges.toSorted((left, right) => right.dueDate.localeCompare(left.dueDate)),
+        tenantPaymentHistory: paymentLedger
+          .filter((payment) => payment.propertyId === service.id)
           .toSorted((left, right) => right.date.localeCompare(left.date)),
       };
     });
@@ -206,27 +434,31 @@ export default function StatusPage() {
     };
   });
 
-  const parkingRows = occupiedRows.map((row) => {
-    const tabSchedules = row.charges.filter((charge) => charge.chargeType === "parking");
-    const tabUnpaidCharges = tabSchedules.filter((charge) => !charge.paidAt);
-    return {
-      ...row,
-      tabSchedules,
-      tabUnpaidCharges,
-      rowState: getRowState(tabUnpaidCharges),
-    };
-  });
+  const parkingRows = [...occupiedRows, ...standaloneParkingRows]
+    .map((row) => {
+      const tabSchedules = row.charges.filter((charge) => charge.chargeType === "parking");
+      const tabUnpaidCharges = tabSchedules.filter((charge) => !charge.paidAt);
+      return {
+        ...row,
+        tabSchedules,
+        tabUnpaidCharges,
+        rowState: getRowState(tabUnpaidCharges),
+      };
+    })
+    .filter((row) => row.tabSchedules.length > 0);
 
-  const internetRows = occupiedRows.map((row) => {
-    const tabSchedules = row.charges.filter((charge) => charge.chargeType === "internet");
-    const tabUnpaidCharges = tabSchedules.filter((charge) => !charge.paidAt);
-    return {
-      ...row,
-      tabSchedules,
-      tabUnpaidCharges,
-      rowState: getRowState(tabUnpaidCharges),
-    };
-  });
+  const internetRows = [...occupiedRows, ...standaloneInternetRows]
+    .map((row) => {
+      const tabSchedules = row.charges.filter((charge) => charge.chargeType === "internet");
+      const tabUnpaidCharges = tabSchedules.filter((charge) => !charge.paidAt);
+      return {
+        ...row,
+        tabSchedules,
+        tabUnpaidCharges,
+        rowState: getRowState(tabUnpaidCharges),
+      };
+    })
+    .filter((row) => row.tabSchedules.length > 0);
 
   const getSourceRowsForTab = (tab: StatusTab) =>
     tab === "apartments" ? apartmentRows : tab === "parking" ? parkingRows : internetRows;
@@ -266,6 +498,14 @@ export default function StatusPage() {
     parking: "Kërko sipas njësisë, qiramarrësit ose parkimit",
     internet: "Kërko sipas njësisë, qiramarrësit ose internetit",
   };
+
+  if (isLoadingData) {
+    return (
+      <section className="space-y-6">
+        <ManagerContentSkeleton />
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-6">
@@ -414,6 +654,7 @@ export default function StatusPage() {
                     </thead>
                     <tbody className="text-sm text-[var(--pm-text-primary)]">
                       {rows.map((row) => {
+                        const hasAnySchedule = row.tabSchedules.length > 0;
                         const monthProgress = row.tabSchedules.reduce<
                           Map<string, { dueDateMs: number; total: number; paid: number }>
                         >((acc, schedule) => {
@@ -449,17 +690,27 @@ export default function StatusPage() {
                           fullyPaidMonths.length > 0
                             ? new Date(Math.max(...fullyPaidMonths.map((month) => month.dueDateMs)))
                             : null;
-                        const paidUntilLabel = paidUntilDate
-                          ? formatMonthYearLabelSq(paidUntilDate)
-                          : "Pa pagesë";
+                        const paidUntilLabel = hasAnySchedule
+                          ? paidUntilDate
+                            ? formatMonthYearLabelSq(paidUntilDate)
+                            : "Pa pagesë"
+                          : "Pa shërbim";
                         const currentMonthProgress = monthProgress.get(currentMonthKey);
                         const isCurrentMonthPaid =
+                          hasAnySchedule &&
                           currentMonthProgress !== undefined &&
                           currentMonthProgress.total > 0 &&
                           currentMonthProgress.paid === currentMonthProgress.total;
-                        const statusClass = isCurrentMonthPaid
-                          ? "bg-[var(--pm-accent-soft)] text-[var(--pm-accent)]"
-                          : "bg-[var(--pm-danger-soft)] text-[var(--pm-danger-strong)]";
+                        const statusClass = !hasAnySchedule
+                          ? "bg-[var(--pm-surface-muted)] text-[var(--pm-text-secondary)]"
+                          : isCurrentMonthPaid
+                            ? "bg-[var(--pm-accent-soft)] text-[var(--pm-accent)]"
+                            : "bg-[var(--pm-danger-soft)] text-[var(--pm-danger-strong)]";
+                        const statusLabel = !hasAnySchedule
+                          ? "Pa shërbim"
+                          : isCurrentMonthPaid
+                            ? "Paguar"
+                            : "Papaguar";
                         return (
                           <tr
                             key={`${tab}-${row.propertyId}`}
@@ -509,7 +760,7 @@ export default function StatusPage() {
                             </td>
                             <td className="px-6 py-3">
                               <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass}`}>
-                                {isCurrentMonthPaid ? "Paguar" : "Papaguar"}
+                                {statusLabel}
                               </span>
                             </td>
                             <td className="px-6 py-3 text-right">
@@ -521,9 +772,9 @@ export default function StatusPage() {
                                     buttonLabel={
                                       tab === "apartments" ? "Paguaj" : tab === "parking" ? "Paguaj Parkimin" : "Paguaj Internetin"
                                     }
-                                    onConfirmPayment={(selectedSchedules, paymentDate) => {
+                                    onConfirmPayment={async (selectedSchedules, paymentDate) => {
                                       const newPayments: Payment[] = selectedSchedules.map((schedule, index) => ({
-                                        id: `log-${schedule.id}-${Date.now()}-${index}`,
+                                        id: `tmp-${schedule.id}-${Date.now()}-${index}`,
                                         date: paymentDate,
                                         method: "cash",
                                         amount: schedule.amount,
@@ -533,7 +784,44 @@ export default function StatusPage() {
                                         chargeType: schedule.chargeType,
                                         coveredMonth: schedule.dueDate.slice(0, 7),
                                       }));
+
                                       setLoggedPayments((current) => [...current, ...newPayments]);
+
+                                      try {
+                                        const response = await fetch("/api/payment-logs", {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify(
+                                            newPayments.map((payment) => ({
+                                              date: payment.date,
+                                              method: payment.method,
+                                              amount: payment.amount,
+                                              currency: payment.currency,
+                                              tenantId: payment.tenantId,
+                                              propertyId: payment.propertyId,
+                                              chargeType: payment.chargeType,
+                                              coveredMonth: payment.coveredMonth,
+                                            })),
+                                          ),
+                                        });
+
+                                        if (!response.ok) {
+                                          throw new Error("Failed to persist payment logs.");
+                                        }
+
+                                        const body = (await response.json()) as { data?: Payment[] };
+                                        const persisted = body.data ?? [];
+                                        if (persisted.length > 0) {
+                                          setPaymentsFromDb((current) => [...persisted, ...current]);
+                                        }
+                                        setLoggedPayments((current) =>
+                                          current.filter((payment) => !payment.id.startsWith("tmp-")),
+                                        );
+                                      } catch {
+                                        // Keep temporary in-memory entries visible until refresh if persistence fails.
+                                      }
                                     }}
                                   />
                                 ) : (

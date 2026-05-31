@@ -29,7 +29,7 @@ type BulkPayModalProps = {
   schedules: ChargeSchedule[];
   allowedChargeTypes?: ChargeType[];
   buttonLabel?: string;
-  onConfirmPayment?: (selectedSchedules: ChargeSchedule[], paymentDate: string) => void;
+  onConfirmPayment?: (selectedSchedules: ChargeSchedule[], paymentDate: string) => Promise<void> | void;
 };
 
 export function BulkPayModal({
@@ -41,6 +41,7 @@ export function BulkPayModal({
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [paymentDate, setPaymentDate] = useState<string>(getTodayDateString());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const visibleColumns = useMemo(
     () => chargeColumns.filter((column) => allowedChargeTypes.includes(column.key)),
     [allowedChargeTypes],
@@ -225,18 +226,26 @@ export function BulkPayModal({
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
+                    disabled={isSubmitting}
+                    onClick={async () => {
                       const paidDate = paymentDate || getTodayDateString();
-                      if (selectedSchedules.length > 0) {
-                        onConfirmPayment?.(selectedSchedules, paidDate);
+                      if (selectedSchedules.length === 0) {
+                        setOpen(false);
+                        return;
                       }
-                      setPaymentDate((current) => current || getTodayDateString());
-                      setSelected([]);
-                      setOpen(false);
+                      setIsSubmitting(true);
+                      try {
+                        await onConfirmPayment?.(selectedSchedules, paidDate);
+                        setPaymentDate((current) => current || getTodayDateString());
+                        setSelected([]);
+                        setOpen(false);
+                      } finally {
+                        setIsSubmitting(false);
+                      }
                     }}
-                    className="rounded-md bg-[var(--pm-accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--pm-accent-strong)]"
+                    className="rounded-md bg-[var(--pm-accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--pm-accent-strong)] disabled:cursor-not-allowed disabled:bg-[var(--pm-surface-muted)] disabled:text-[var(--pm-text-secondary)]"
                   >
-                    Konfirmo Pagesën
+                    {isSubmitting ? "Duke ruajtur..." : "Konfirmo Pagesën"}
                   </button>
                 </div>
               </div>

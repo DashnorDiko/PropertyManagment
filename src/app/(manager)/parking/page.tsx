@@ -3,18 +3,10 @@ import Link from "next/link";
 import { ParkingListTable } from "@/components/parking/ParkingListTable";
 import { ModuleHeader } from "@/components/ui/ModuleHeader";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
+import { listParkingSpots } from "@/lib/data/parking";
 
-const parkingSlots: {
-  id: string;
-  spotCode: string;
-  status: "free" | "occupied";
-  assigneeType: "tenant" | "independent";
-  assigneeName: string;
-  parkingCardNumber: string;
-  price: number;
-}[] = [];
-
-export default function ParkingPage() {
+export default async function ParkingPage() {
+  const parkingSlots = await listParkingSpots();
   const occupiedCount = parkingSlots.filter((slot) => slot.status === "occupied").length;
   const freeCount = parkingSlots.filter((slot) => slot.status === "free").length;
   const monthlyTotal = parkingSlots.reduce((sum, slot) => sum + slot.price, 0);

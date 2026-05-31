@@ -3,18 +3,10 @@ import Link from "next/link";
 import { InternetListTable } from "@/components/internet/InternetListTable";
 import { ModuleHeader } from "@/components/ui/ModuleHeader";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
+import { listInternetServices } from "@/lib/data/internet";
 
-const internetServices: {
-  id: string;
-  serviceCode: string;
-  status: "free" | "occupied";
-  assigneeType: "tenant" | "independent";
-  assigneeName: string;
-  modemSerialNumber: string;
-  price: number;
-}[] = [];
-
-export default function InternetPage() {
+export default async function InternetPage() {
+  const internetServices = await listInternetServices();
   const occupiedCount = internetServices.filter((item) => item.status === "occupied").length;
   const freeCount = internetServices.filter((item) => item.status === "free").length;
   const monthlyTotal = internetServices.reduce((sum, item) => sum + item.price, 0);

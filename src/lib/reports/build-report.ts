@@ -1,40 +1,58 @@
-import {
-  chargeSchedules,
-  payments,
-  properties,
-  tenancies,
-  tenants,
-} from "@/lib/data/manager";
 import { emptyCurrencyTotals, addToTotals } from "@/lib/domain/currency";
-import { propertyOccupancyDays, tenantRevenue } from "@/lib/domain/statistics";
+import { listPaymentLogs } from "@/lib/data/payment-logs";
+import { listProperties } from "@/lib/data/properties";
 
-export function buildMonthlyReportData() {
-  const totals = chargeSchedules.reduce(
-    (acc, charge) => addToTotals(acc, charge.amount, charge.currency),
+export async function buildMonthlyReportData() {
+  const [properties, payments] = await Promise.all([
+    listProperties(),
+    listPaymentLogs(),
+  ]);
+
+  const totals = payments.reduce(
+    (acc, payment) => addToTotals(acc, payment.amount, payment.currency),
     emptyCurrencyTotals(),
   );
+
+  const occupiedProperties = properties.filter((property) => property.status === "occupied");
 
   return {
     period: "monthly",
     totals,
     properties: properties.map((property) => ({
       id: property.id,
-      apartmentName: property.apartmentName,
-      registrationDate: property.registrationDate,
-      totalHistoricalTenants: tenancies.filter((item) => item.propertyId === property.id).length,
-      occupancy: propertyOccupancyDays(property, tenancies),
+      apartmentName: property.unitName,
+      registrationDate: "N/A",
+      totalHistoricalTenants: property.tenantName ? 1 : 0,
+      occupancy: {
+        occupiedDays: property.status === "occupied" ? 1 : 0,
+        emptyDays: property.status === "occupied" ? 0 : 1,
+      },
     })),
-    tenantStats: tenants.map((tenant) => ({
-      id: tenant.id,
-      name: tenant.name,
-      revenue: tenantRevenue(payments, tenant.id),
-      paymentCount: payments.filter((payment) => payment.tenantId === tenant.id).length,
-    })),
+    tenantStats: occupiedProperties
+      .filter((property) => property.tenantName.trim().length > 0)
+      .map((property) => {
+        const tenantPayments = payments.filter(
+          (payment) =>
+            payment.propertyId === property.id &&
+            payment.tenantId === undefined,
+        );
+        const revenue = tenantPayments.reduce(
+          (acc, payment) => addToTotals(acc, payment.amount, payment.currency),
+          emptyCurrencyTotals(),
+        );
+
+        return {
+          id: property.id,
+          name: property.tenantName,
+          revenue,
+          paymentCount: tenantPayments.length,
+        };
+      }),
   };
 }
 
-export function buildYearlyReportData() {
-  const monthly = buildMonthlyReportData();
+export async function buildYearlyReportData() {
+  const monthly = await buildMonthlyReportData();
   return {
     period: "yearly",
     totals: {
