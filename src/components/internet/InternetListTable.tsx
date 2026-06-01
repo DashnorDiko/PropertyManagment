@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 export type InternetListItem = {
@@ -27,10 +28,13 @@ const statusTone: Record<InternetListItem["status"], string> = {
 };
 
 export function InternetListTable({ items }: InternetListTableProps) {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("all");
   const [statusSort, setStatusSort] = useState<StatusSort>("none");
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const normalizedSearch = searchTerm.trim().toLocaleLowerCase();
 
   const visibleItems = useMemo(() => {
@@ -70,6 +74,34 @@ export function InternetListTable({ items }: InternetListTableProps) {
       if (current === "asc") return "desc";
       return "none";
     });
+  };
+
+  const handleDelete = async (serviceId: string) => {
+    if (!window.confirm("A je i sigurt që dëshiron të fshish këtë shërbim interneti?")) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setDeletingId(serviceId);
+
+    try {
+      const response = await fetch(`/api/internet?id=${encodeURIComponent(serviceId)}`, {
+        method: "DELETE",
+      });
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) {
+        throw new Error(body.message || "Dështoi fshirja e shërbimit të internetit.");
+      }
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Dështoi fshirja e shërbimit të internetit. Provo përsëri.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -142,6 +174,9 @@ export function InternetListTable({ items }: InternetListTableProps) {
           );
         })}
       </div>
+      {errorMessage ? (
+        <p className="text-sm text-[var(--pm-danger)]">{errorMessage}</p>
+      ) : null}
 
       <div className="overflow-x-auto rounded-2xl border border-[var(--pm-border)]/80 bg-[var(--pm-surface)] shadow-sm">
         <table className="min-w-full text-left text-sm">
@@ -188,12 +223,22 @@ export function InternetListTable({ items }: InternetListTableProps) {
                 <td className="px-5 py-3 text-[var(--pm-text-secondary)]">{service.modemSerialNumber || "-"}</td>
                 <td className="px-5 py-3 text-[var(--pm-text-secondary)]">{service.price.toFixed(2)} EUR</td>
                 <td className="px-5 py-3 text-right">
-                  <Link
-                    href={`/internet/${service.id}/edit`}
-                    className="rounded-lg border border-[var(--pm-border)] px-3 py-1.5 text-xs font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"
-                  >
-                    Ndrysho
-                  </Link>
+                  <div className="inline-flex items-center gap-2">
+                    <Link
+                      href={`/internet/${service.id}/edit`}
+                      className="rounded-lg border border-[var(--pm-border)] px-3 py-1.5 text-xs font-medium text-[var(--pm-text-secondary)] transition hover:bg-[var(--pm-surface-soft)]"
+                    >
+                      Ndrysho
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(service.id)}
+                      disabled={deletingId === service.id}
+                      className="rounded-lg border border-[var(--pm-danger)]/50 px-3 py-1.5 text-xs font-medium text-[var(--pm-danger)] transition hover:bg-[var(--pm-danger)]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingId === service.id ? "Duke fshirë..." : "Fshi"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

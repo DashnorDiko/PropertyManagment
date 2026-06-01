@@ -7,15 +7,18 @@ export type InternetListItem = {
   serviceCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   modemSerialNumber: string;
   price: number;
+  createdAt: string;
 };
 
 export type CreateInternetInput = {
   serviceCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   modemSerialNumber: string;
   price: number;
@@ -26,9 +29,11 @@ type InternetRow = {
   service_code: string;
   status: "free" | "occupied";
   assignee_type: "tenant" | "independent";
+  property_id: string | null;
   assignee_name: string | null;
   modem_serial_number: string | null;
   price: string;
+  created_at: string;
 };
 
 declare global {
@@ -80,11 +85,16 @@ async function ensureInternetTable(pool: Pool): Promise<void> {
       service_code TEXT NOT NULL,
       status TEXT NOT NULL CHECK (status IN ('free', 'occupied')),
       assignee_type TEXT NOT NULL CHECK (assignee_type IN ('tenant', 'independent')),
+      property_id TEXT,
       assignee_name TEXT,
       modem_serial_number TEXT,
       price NUMERIC(12, 2) NOT NULL CHECK (price >= 0),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+  await pool.query(`
+    ALTER TABLE internet_services
+    ADD COLUMN IF NOT EXISTS property_id TEXT
   `);
 }
 
@@ -94,9 +104,11 @@ function mapRow(row: InternetRow): InternetListItem {
     serviceCode: row.service_code,
     status: row.status,
     assigneeType: row.assignee_type,
+    propertyId: row.property_id ?? undefined,
     assigneeName: row.assignee_name ?? "",
     modemSerialNumber: row.modem_serial_number ?? "",
     price: Number(row.price),
+    createdAt: row.created_at,
   };
 }
 
@@ -115,9 +127,11 @@ export async function listInternetServices(): Promise<InternetListItem[]> {
         service_code,
         status,
         assignee_type,
+        property_id,
         assignee_name,
         modem_serial_number,
-        price
+        price,
+        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
       FROM internet_services
       ORDER BY created_at DESC
     `,
@@ -146,25 +160,29 @@ export async function createInternetService(
         service_code,
         status,
         assignee_type,
+        property_id,
         assignee_name,
         modem_serial_number,
         price
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING
         id,
         service_code,
         status,
         assignee_type,
+        property_id,
         assignee_name,
         modem_serial_number,
-        price
+        price,
+        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
     `,
     [
       id,
       input.serviceCode,
       input.status,
       input.assigneeType,
+      input.propertyId ?? null,
       input.assigneeName || null,
       input.modemSerialNumber || null,
       input.price,
@@ -176,4 +194,30 @@ export async function createInternetService(
   }
 
   return mapRow(rows[0]);
+}
+
+export async function deleteInternetService(id: string): Promise<boolean> {
+  if (!hasDatabaseConfig()) {
+    throw new Error(
+      "No database configuration found. Set DATABASE_URL or PGHOST/PGDATABASE/PGUSER/PGPASSWORD.",
+    );
+  }
+
+  const serviceId = id.trim();
+  if (!serviceId) {
+    return false;
+  }
+
+  const pool = getPool();
+  await ensureInternetTable(pool);
+
+  const { rowCount } = await pool.query(
+    `
+      DELETE FROM internet_services
+      WHERE id = $1
+    `,
+    [serviceId],
+  );
+
+  return (rowCount ?? 0) > 0;
 }

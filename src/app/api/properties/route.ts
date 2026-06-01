@@ -4,7 +4,7 @@ import {
   MANAGER_SESSION_COOKIE,
   readSessionToken,
 } from "@/lib/auth/manager-auth";
-import { createProperty, listProperties } from "@/lib/data/properties";
+import { createProperty, deleteProperty, listProperties } from "@/lib/data/properties";
 
 export const runtime = "nodejs";
 
@@ -132,6 +132,47 @@ export async function GET() {
 
     return Response.json(
       { error: "Failed to load properties", message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await requireManagerSession();
+  if (!session) {
+    return Response.json(
+      { error: "Unauthorized", message: "Kërkohet hyrja në sistem." },
+      { status: 401 },
+    );
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id")?.trim() ?? "";
+
+  if (!id) {
+    return Response.json(
+      { error: "Validation failed", message: "ID e pronës është e detyrueshme." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const deleted = await deleteProperty(id);
+    if (!deleted) {
+      return Response.json(
+        { error: "Not found", message: "Prona nuk u gjet." },
+        { status: 404 },
+      );
+    }
+    return Response.json({ success: true });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Dështoi fshirja e pronës. Provo përsëri.";
+
+    return Response.json(
+      { error: "Failed to delete property", message },
       { status: 500 },
     );
   }

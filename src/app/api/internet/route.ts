@@ -4,7 +4,11 @@ import {
   MANAGER_SESSION_COOKIE,
   readSessionToken,
 } from "@/lib/auth/manager-auth";
-import { createInternetService, listInternetServices } from "@/lib/data/internet";
+import {
+  createInternetService,
+  deleteInternetService,
+  listInternetServices,
+} from "@/lib/data/internet";
 
 export const runtime = "nodejs";
 
@@ -18,6 +22,7 @@ type IncomingInternetPayload = {
   serviceCode?: unknown;
   status?: unknown;
   assigneeType?: unknown;
+  propertyId?: unknown;
   assigneeName?: unknown;
   modemSerialNumber?: unknown;
   price?: unknown;
@@ -33,6 +38,7 @@ function validatePayload(payload: IncomingInternetPayload) {
   const modemSerialNumber = normalizeString(payload.modemSerialNumber).toUpperCase();
   const status = payload.status;
   const assigneeType = payload.assigneeType;
+  const propertyId = normalizeString(payload.propertyId);
   const price = Number(payload.price);
 
   if (!serviceCode) {
@@ -57,12 +63,18 @@ function validatePayload(payload: IncomingInternetPayload) {
       error: "Numri i modemit është i detyrueshëm kur shërbimi është i zënë.",
     } as const;
   }
+  if (status === "occupied" && assigneeType === "tenant" && !propertyId) {
+    return {
+      error: "Zgjidh pronën për caktim te qiramarrësi.",
+    } as const;
+  }
 
   return {
     data: {
       serviceCode,
       status,
       assigneeType,
+      propertyId: assigneeType === "tenant" ? propertyId : undefined,
       assigneeName: status === "free" ? "" : assigneeName,
       modemSerialNumber: status === "free" ? "" : modemSerialNumber,
       price,
@@ -133,6 +145,47 @@ export async function GET() {
 
     return Response.json(
       { error: "Failed to load internet services", message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await requireManagerSession();
+  if (!session) {
+    return Response.json(
+      { error: "Unauthorized", message: "Kërkohet hyrja në sistem." },
+      { status: 401 },
+    );
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id")?.trim() ?? "";
+
+  if (!id) {
+    return Response.json(
+      { error: "Validation failed", message: "ID e shërbimit është e detyrueshme." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const deleted = await deleteInternetService(id);
+    if (!deleted) {
+      return Response.json(
+        { error: "Not found", message: "Shërbimi nuk u gjet." },
+        { status: 404 },
+      );
+    }
+    return Response.json({ success: true });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Dështoi fshirja e shërbimit të internetit. Provo përsëri.";
+
+    return Response.json(
+      { error: "Failed to delete internet service", message },
       { status: 500 },
     );
   }

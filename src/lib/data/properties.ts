@@ -9,6 +9,7 @@ export type PropertyListItem = {
   tenantName: string;
   rentAmount?: number;
   rentCurrency: "EUR" | "ALL";
+  createdAt: string;
 };
 
 export type CreatePropertyInput = {
@@ -28,6 +29,7 @@ type PropertyRow = {
   tenant_name: string | null;
   rent_amount: string;
   rent_currency: "EUR" | "ALL";
+  created_at: string;
 };
 
 declare global {
@@ -96,6 +98,7 @@ function mapRowToListItem(row: PropertyRow): PropertyListItem {
     tenantName: row.tenant_name ?? "",
     rentAmount: Number(row.rent_amount),
     rentCurrency: row.rent_currency,
+    createdAt: row.created_at,
   };
 }
 
@@ -116,7 +119,8 @@ export async function listProperties(): Promise<PropertyListItem[]> {
         status,
         tenant_name,
         rent_amount,
-        rent_currency
+        rent_currency,
+        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
       FROM properties
       ORDER BY created_at DESC
     `,
@@ -157,7 +161,8 @@ export async function createProperty(
         status,
         tenant_name,
         rent_amount,
-        rent_currency
+        rent_currency,
+        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
     `,
     [
       id,
@@ -175,4 +180,30 @@ export async function createProperty(
   }
 
   return mapRowToListItem(rows[0]);
+}
+
+export async function deleteProperty(id: string): Promise<boolean> {
+  if (!hasDatabaseConfig()) {
+    throw new Error(
+      "No database configuration found. Set DATABASE_URL or PGHOST/PGDATABASE/PGUSER/PGPASSWORD.",
+    );
+  }
+
+  const propertyId = id.trim();
+  if (!propertyId) {
+    return false;
+  }
+
+  const pool = getPool();
+  await ensurePropertiesTable(pool);
+
+  const { rowCount } = await pool.query(
+    `
+      DELETE FROM properties
+      WHERE id = $1
+    `,
+    [propertyId],
+  );
+
+  return (rowCount ?? 0) > 0;
 }

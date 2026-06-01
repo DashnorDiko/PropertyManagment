@@ -21,6 +21,7 @@ type PropertyStatusRow = {
   tenantName: string;
   rentAmount: number;
   rentCurrency: "EUR" | "ALL";
+  createdAt: string;
 };
 
 type ParkingStatusRow = {
@@ -28,8 +29,10 @@ type ParkingStatusRow = {
   spotCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   price: number;
+  createdAt: string;
 };
 
 type InternetStatusRow = {
@@ -37,8 +40,10 @@ type InternetStatusRow = {
   serviceCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   price: number;
+  createdAt: string;
 };
 
 type PropertyApiRow = {
@@ -49,6 +54,7 @@ type PropertyApiRow = {
   tenantName: string;
   rentAmount?: number;
   rentCurrency: "EUR" | "ALL";
+  createdAt: string;
 };
 
 type ParkingApiRow = {
@@ -56,8 +62,10 @@ type ParkingApiRow = {
   spotCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   price: number;
+  createdAt: string;
 };
 
 type InternetApiRow = {
@@ -65,8 +73,10 @@ type InternetApiRow = {
   serviceCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   price: number;
+  createdAt: string;
 };
 
 type ManagerSettingsApiRow = {
@@ -75,10 +85,6 @@ type ManagerSettingsApiRow = {
 };
 
 type PaymentApiRow = Payment;
-
-function normalizeName(value: string): string {
-  return value.trim().toLocaleLowerCase();
-}
 
 function chargeTypeLabel(type: string): string {
   switch (type) {
@@ -176,6 +182,7 @@ export default function StatusPage() {
             tenantName: property.tenantName,
             rentAmount: property.rentAmount ?? 0,
             rentCurrency: property.rentCurrency,
+            createdAt: property.createdAt,
           })),
         );
         setParkingServices(parkingBody.data ?? []);
@@ -240,18 +247,37 @@ export default function StatusPage() {
     chargeType: ChargeType,
     amount: number,
     currency: "EUR" | "ALL",
-  ): ChargeSchedule[] =>
-    monthsOfYear.map((month) => ({
-      id: `${propertyId}-${chargeType}-${month.monthKey}`,
-      propertyId,
-      tenantId,
-      chargeType,
-      dueDate: month.dueDate,
-      monthLabel: month.monthLabel,
-      amount,
-      currency,
-      paidAt: coverageMap.get(`${propertyId}-${chargeType}-${month.monthKey}`),
-    }));
+    startDateIso?: string,
+  ): ChargeSchedule[] => {
+    const startDate = startDateIso ? new Date(startDateIso) : null;
+    const startMonthIndex = startDate ? startDate.getUTCMonth() : 0;
+    const startYear = startDate ? startDate.getUTCFullYear() : currentYear;
+
+    return monthsOfYear
+      .filter((month, monthIndex) => {
+        if (startDate === null) {
+          return true;
+        }
+        if (startYear < currentYear) {
+          return true;
+        }
+        if (startYear > currentYear) {
+          return false;
+        }
+        return monthIndex >= startMonthIndex;
+      })
+      .map((month) => ({
+        id: `${propertyId}-${chargeType}-${month.monthKey}`,
+        propertyId,
+        tenantId,
+        chargeType,
+        dueDate: month.dueDate,
+        monthLabel: month.monthLabel,
+        amount,
+        currency,
+        paidAt: coverageMap.get(`${propertyId}-${chargeType}-${month.monthKey}`),
+      }));
+  };
 
   const matchedParkingServiceIds = new Set<string>();
   const matchedInternetServiceIds = new Set<string>();
@@ -260,23 +286,18 @@ export default function StatusPage() {
     .filter((property) => property.status === "occupied")
     .map((property) => {
       const tenantId = undefined;
-      const normalizedTenantName = normalizeName(property.tenantName);
-      const parkingPlan =
-        normalizedTenantName.length > 0
-          ? parkingServices.find(
-              (spot) =>
-                spot.status === "occupied" &&
-                normalizeName(spot.assigneeName) === normalizedTenantName,
-            )
-          : undefined;
-      const internetPlan =
-        normalizedTenantName.length > 0
-          ? internetServices.find(
-              (service) =>
-                service.status === "occupied" &&
-                normalizeName(service.assigneeName) === normalizedTenantName,
-            )
-          : undefined;
+      const parkingPlan = parkingServices.find(
+        (spot) =>
+          spot.status === "occupied" &&
+          spot.assigneeType === "tenant" &&
+          spot.propertyId === property.id,
+      );
+      const internetPlan = internetServices.find(
+        (service) =>
+          service.status === "occupied" &&
+          service.assigneeType === "tenant" &&
+          service.propertyId === property.id,
+      );
       if (parkingPlan) {
         matchedParkingServiceIds.add(parkingPlan.id);
       }
@@ -289,6 +310,7 @@ export default function StatusPage() {
         "rent",
         property.rentAmount,
         property.rentCurrency,
+        property.createdAt,
       );
       const adminSchedules = buildSchedules(
         property.id,
@@ -296,12 +318,13 @@ export default function StatusPage() {
         "administration",
         managerSettings.administrationFee,
         managerSettings.administrationCurrency,
+        property.createdAt,
       );
       const parkingSchedules = parkingPlan
-        ? buildSchedules(property.id, tenantId, "parking", parkingPlan.price, "EUR")
+        ? buildSchedules(property.id, tenantId, "parking", parkingPlan.price, "EUR", parkingPlan.createdAt)
         : [];
       const internetSchedules = internetPlan
-        ? buildSchedules(property.id, tenantId, "internet", internetPlan.price, "EUR")
+        ? buildSchedules(property.id, tenantId, "internet", internetPlan.price, "EUR", internetPlan.createdAt)
         : [];
       const charges = [...rentSchedules, ...adminSchedules, ...parkingSchedules, ...internetSchedules];
       const unpaidCharges = charges.filter((charge) => !charge.paidAt);
@@ -320,12 +343,9 @@ export default function StatusPage() {
         hasParkingService,
         hasInternetService,
         tenantChargeHistory: charges
-          .filter((charge) => (tenantId ? charge.tenantId === tenantId : false))
           .toSorted((left, right) => right.dueDate.localeCompare(left.dueDate)),
         tenantPaymentHistory: paymentLedger
-          .filter(
-            (payment) => payment.propertyId === property.id && (tenantId ? payment.tenantId === tenantId : false),
-          )
+          .filter((payment) => payment.propertyId === property.id)
           .toSorted((left, right) => right.date.localeCompare(left.date)),
       };
     });
@@ -333,7 +353,7 @@ export default function StatusPage() {
   const standaloneParkingRows = parkingServices
     .filter((service) => service.status === "occupied" && !matchedParkingServiceIds.has(service.id))
     .map((service) => {
-      const charges = buildSchedules(service.id, undefined, "parking", service.price, "EUR");
+      const charges = buildSchedules(service.id, undefined, "parking", service.price, "EUR", service.createdAt);
       const unpaidCharges = charges.filter((charge) => !charge.paidAt);
 
       return {
@@ -357,7 +377,7 @@ export default function StatusPage() {
   const standaloneInternetRows = internetServices
     .filter((service) => service.status === "occupied" && !matchedInternetServiceIds.has(service.id))
     .map((service) => {
-      const charges = buildSchedules(service.id, undefined, "internet", service.price, "EUR");
+      const charges = buildSchedules(service.id, undefined, "internet", service.price, "EUR", service.createdAt);
       const unpaidCharges = charges.filter((charge) => !charge.paidAt);
 
       return {
@@ -846,7 +866,11 @@ export default function StatusPage() {
                       {rows.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-6 py-6 text-center text-sm text-[var(--pm-text-secondary)]">
-                            Nuk ka apartamente që përputhen me këtë filtër statusi.
+                            {tab === "apartments"
+                              ? "Nuk ka apartamente që përputhen me këtë filtër statusi."
+                              : tab === "parking"
+                                ? "Nuk ka detyrime parkimi që përputhen me këtë filtër."
+                                : "Nuk ka detyrime interneti që përputhen me këtë filtër."}
                           </td>
                         </tr>
                       ) : null}

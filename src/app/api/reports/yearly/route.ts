@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/auth/manager-auth";
 import { calculateReportStatistics } from "../../../../lib/domain/statistics";
 import { generateReportPdf } from "../../../../lib/reports/pdf";
+import type { ReportPaymentRecord } from "../../../../lib/data/reports";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,63 @@ interface YearPeriodResult {
   from: string;
   to: string;
   label: string;
+}
+
+type MonthlyBreakdownItem = {
+  month: number;
+  label: string;
+  count: number;
+  paidCount: number;
+  unpaidCount: number;
+  totals: {
+    EUR: number;
+    ALL: number;
+  };
+};
+
+function buildMonthlyBreakdown(
+  payments: ReportPaymentRecord[],
+  year: number,
+): MonthlyBreakdownItem[] {
+  const byMonth = new Map<number, ReportPaymentRecord[]>();
+  for (let month = 1; month <= 12; month += 1) {
+    byMonth.set(month, []);
+  }
+
+  for (const payment of payments) {
+    const dueDate = new Date(payment.dueDate);
+    const paymentYear = dueDate.getUTCFullYear();
+    if (paymentYear !== year) {
+      continue;
+    }
+    const month = dueDate.getUTCMonth() + 1;
+    const monthPayments = byMonth.get(month);
+    if (!monthPayments) {
+      continue;
+    }
+    monthPayments.push(payment);
+  }
+
+  return Array.from(byMonth.entries())
+    .map(([month, monthPayments]) => {
+      const statistics = calculateReportStatistics(monthPayments);
+      return {
+        month,
+        label: `${year}-${String(month).padStart(2, "0")}`,
+        count: statistics.count,
+        paidCount: statistics.paidCount,
+        unpaidCount: statistics.unpaidCount,
+        totals: statistics.totals,
+      };
+    })
+    .sort((left, right) => left.month - right.month);
+}
+
+function calculateCollectionRate(paidCount: number, totalCount: number): number {
+  if (totalCount <= 0) {
+    return 0;
+  }
+  return Math.round((paidCount / totalCount) * 1000) / 10;
 }
 
 function getYearlyPeriod(searchParams: URLSearchParams): YearPeriodResult {
@@ -55,18 +113,25 @@ export async function GET(request: NextRequest) {
       to: period.to,
     });
     const statistics = calculateReportStatistics(payments);
+    const monthlyBreakdown = buildMonthlyBreakdown(payments, period.year);
 
     if (format === "json") {
       return Response.json({
         type: "yearly",
         period,
         statistics,
+        monthlyBreakdown,
+        insights: {
+          collectionRate: calculateCollectionRate(statistics.paidCount, statistics.count),
+          strongestMonth:
+            monthlyBreakdown.toSorted((left, right) => right.totals.EUR - left.totals.EUR)[0] ?? null,
+        },
         generatedAt: new Date().toISOString(),
       });
     }
 
     const pdf = await generateReportPdf({
-      title: "Yearly Payments Report",
+      title: "Raporti Vjetor i Pagesave",
       periodLabel: period.label,
       generatedAt: new Date(),
       statistics,
@@ -79,11 +144,11 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof Error ? error.message : "Gabim i panjohur";
 
     return Response.json(
       {
-        error: "Failed to generate yearly report",
+        error: "Dështoi gjenerimi i raportit vjetor",
         message,
       },
       { status: 500 },

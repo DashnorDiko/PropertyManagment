@@ -1,18 +1,88 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ModuleHeader } from "@/components/ui/ModuleHeader";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
+import { formatCurrency } from "@/lib/domain/currency";
 import { formatMonthYearLabelSq } from "@/lib/domain/date-format";
 
 const now = new Date();
 const currentYear = now.getUTCFullYear();
 const currentMonth = now.getUTCMonth() + 1;
 
+type ReportStatistics = {
+  count: number;
+  paidCount: number;
+  unpaidCount: number;
+  totals: {
+    EUR: number;
+    ALL: number;
+  };
+  paidTotals: {
+    EUR: number;
+    ALL: number;
+  };
+  unpaidTotals: {
+    EUR: number;
+    ALL: number;
+  };
+};
+
+type MonthlyReportResponse = {
+  type: "monthly";
+  period: {
+    year: number;
+    month: number;
+    from: string;
+    to: string;
+    label: string;
+  };
+  statistics: ReportStatistics;
+  insights: {
+    collectionRate: number;
+    paidDeltaEUR: number;
+    paidDeltaALL: number;
+  };
+  generatedAt: string;
+};
+
+type YearlyBreakdownRow = {
+  month: number;
+  label: string;
+  count: number;
+  paidCount: number;
+  unpaidCount: number;
+  totals: {
+    EUR: number;
+    ALL: number;
+  };
+};
+
+type YearlyReportResponse = {
+  type: "yearly";
+  period: {
+    year: number;
+    from: string;
+    to: string;
+    label: string;
+  };
+  statistics: ReportStatistics;
+  monthlyBreakdown: YearlyBreakdownRow[];
+  insights: {
+    collectionRate: number;
+    strongestMonth: YearlyBreakdownRow | null;
+  };
+  generatedAt: string;
+};
+
 export default function ReportsPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [monthlyData, setMonthlyData] = useState<MonthlyReportResponse | null>(null);
+  const [yearlyData, setYearlyData] = useState<YearlyReportResponse | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const yearlyOptions = useMemo(() => {
     const start = currentYear - 5;
@@ -27,6 +97,58 @@ export default function ReportsPage() {
   const monthlyJsonHref = `/api/reports/monthly?year=${selectedYear}&month=${selectedMonth}&format=json`;
   const yearlyPdfHref = `/api/reports/yearly?year=${selectedYear}`;
   const yearlyJsonHref = `/api/reports/yearly?year=${selectedYear}&format=json`;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadPreviewData() {
+      setIsLoadingPreview(true);
+      setPreviewError(null);
+
+      try {
+        const [monthlyResponse, yearlyResponse] = await Promise.all([
+          fetch(monthlyJsonHref, { signal: controller.signal }),
+          fetch(yearlyJsonHref, { signal: controller.signal }),
+        ]);
+
+        const monthlyBody = (await monthlyResponse.json()) as {
+          message?: string;
+        } & Partial<MonthlyReportResponse>;
+        const yearlyBody = (await yearlyResponse.json()) as {
+          message?: string;
+        } & Partial<YearlyReportResponse>;
+
+        if (!monthlyResponse.ok) {
+          throw new Error(monthlyBody.message || "Dështoi ngarkimi i raportit mujor.");
+        }
+        if (!yearlyResponse.ok) {
+          throw new Error(yearlyBody.message || "Dështoi ngarkimi i raportit vjetor.");
+        }
+
+        setMonthlyData(monthlyBody as MonthlyReportResponse);
+        setYearlyData(yearlyBody as YearlyReportResponse);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setPreviewError(
+          error instanceof Error
+            ? error.message
+            : "Nuk u ngarkua përmbledhja e raporteve. Provo përsëri.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingPreview(false);
+        }
+      }
+    }
+
+    void loadPreviewData();
+
+    return () => {
+      controller.abort();
+    };
+  }, [monthlyJsonHref, yearlyJsonHref]);
 
   return (
     <div className="space-y-5">
@@ -46,6 +168,92 @@ export default function ReportsPage() {
           <p className="text-2xl font-bold text-[var(--pm-text-primary)]">PDF + JSON</p>
         </SurfaceCard>
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SurfaceCard title="Përmbledhje Mujore" subtitle="Performanca e pagesave për muajin e zgjedhur.">
+          {isLoadingPreview ? (
+            <p className="text-sm text-[var(--pm-text-secondary)]">Duke ngarkuar të dhënat mujore...</p>
+          ) : monthlyData ? (
+            <div className="space-y-2 text-sm text-[var(--pm-text-secondary)]">
+              <p>
+                Norma e arkëtimit:{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {monthlyData.insights.collectionRate.toFixed(1)}%
+                </span>
+              </p>
+              <p>
+                Pagesa të kryera / të papaguara:{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {monthlyData.statistics.paidCount} / {monthlyData.statistics.unpaidCount}
+                </span>
+              </p>
+              <p>
+                Totali i arkëtuar:{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {formatCurrency(monthlyData.statistics.paidTotals.EUR, "EUR")} /{" "}
+                  {formatCurrency(monthlyData.statistics.paidTotals.ALL, "ALL")}
+                </span>
+              </p>
+              <p>
+                Totali i papaguar:{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {formatCurrency(monthlyData.statistics.unpaidTotals.EUR, "EUR")} /{" "}
+                  {formatCurrency(monthlyData.statistics.unpaidTotals.ALL, "ALL")}
+                </span>
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--pm-text-secondary)]">Nuk ka të dhëna mujore për t&apos;u shfaqur.</p>
+          )}
+        </SurfaceCard>
+
+        <SurfaceCard title="Përmbledhje Vjetore" subtitle="Panoramë e pagesave për vitin e zgjedhur.">
+          {isLoadingPreview ? (
+            <p className="text-sm text-[var(--pm-text-secondary)]">Duke ngarkuar të dhënat vjetore...</p>
+          ) : yearlyData ? (
+            <div className="space-y-2 text-sm text-[var(--pm-text-secondary)]">
+              <p>
+                Norma e arkëtimit:{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {yearlyData.insights.collectionRate.toFixed(1)}%
+                </span>
+              </p>
+              <p>
+                Regjistra total / të paguar:{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {yearlyData.statistics.count} / {yearlyData.statistics.paidCount}
+                </span>
+              </p>
+              <p>
+                Totali vjetor:{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {formatCurrency(yearlyData.statistics.totals.EUR, "EUR")} /{" "}
+                  {formatCurrency(yearlyData.statistics.totals.ALL, "ALL")}
+                </span>
+              </p>
+              <p>
+                Muaji më i fortë (EUR):{" "}
+                <span className="font-semibold text-[var(--pm-text-primary)]">
+                  {yearlyData.insights.strongestMonth
+                    ? `${yearlyData.insights.strongestMonth.label} (${formatCurrency(
+                        yearlyData.insights.strongestMonth.totals.EUR,
+                        "EUR",
+                      )})`
+                    : "Nuk ka të dhëna"}
+                </span>
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--pm-text-secondary)]">Nuk ka të dhëna vjetore për t&apos;u shfaqur.</p>
+          )}
+        </SurfaceCard>
+      </div>
+
+      {previewError ? (
+        <SurfaceCard title="Gabim gjatë ngarkimit">
+          <p className="text-sm text-[var(--pm-danger)]">{previewError}</p>
+        </SurfaceCard>
+      ) : null}
 
       <SurfaceCard title="Parametrat e Raportit" subtitle="Zgjidh periudhën përpara shkarkimit.">
         <div className="grid gap-4 md:grid-cols-2">
@@ -107,6 +315,50 @@ export default function ReportsPage() {
             Shkarko JSON Vjetor
           </a>
         </div>
+      </SurfaceCard>
+
+      <SurfaceCard title="Detajim Mujor i Vitit" subtitle="Pamje mujore për raportin vjetor.">
+        {isLoadingPreview ? (
+          <p className="text-sm text-[var(--pm-text-secondary)]">Duke ngarkuar detajimin e vitit...</p>
+        ) : yearlyData ? (
+          <div className="overflow-x-auto rounded-2xl border border-[var(--pm-border)]/80 bg-[var(--pm-surface)] shadow-sm">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-[var(--pm-surface-soft)] text-xs uppercase tracking-wide text-[var(--pm-text-secondary)]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Muaji</th>
+                  <th className="px-4 py-3 font-semibold">Regjistra</th>
+                  <th className="px-4 py-3 font-semibold">Paguar</th>
+                  <th className="px-4 py-3 font-semibold">Papaguar</th>
+                  <th className="px-4 py-3 font-semibold">Total EUR</th>
+                  <th className="px-4 py-3 font-semibold">Total ALL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {yearlyData.monthlyBreakdown.map((row) => (
+                  <tr
+                    key={row.label}
+                    className="border-t border-[var(--pm-border)]/60 transition hover:bg-[var(--pm-surface-soft)]"
+                  >
+                    <td className="px-4 py-3 text-[var(--pm-text-primary)]">
+                      {formatMonthYearLabelSq(new Date(Date.UTC(selectedYear, row.month - 1, 1)))}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--pm-text-secondary)]">{row.count}</td>
+                    <td className="px-4 py-3 text-[var(--pm-text-secondary)]">{row.paidCount}</td>
+                    <td className="px-4 py-3 text-[var(--pm-text-secondary)]">{row.unpaidCount}</td>
+                    <td className="px-4 py-3 text-[var(--pm-text-secondary)]">
+                      {formatCurrency(row.totals.EUR, "EUR")}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--pm-text-secondary)]">
+                      {formatCurrency(row.totals.ALL, "ALL")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--pm-text-secondary)]">Nuk ka detajim vjetor për t&apos;u shfaqur.</p>
+        )}
       </SurfaceCard>
     </div>
   );

@@ -4,7 +4,7 @@ import {
   MANAGER_SESSION_COOKIE,
   readSessionToken,
 } from "@/lib/auth/manager-auth";
-import { createParkingSpot, listParkingSpots } from "@/lib/data/parking";
+import { createParkingSpot, deleteParkingSpot, listParkingSpots } from "@/lib/data/parking";
 
 export const runtime = "nodejs";
 
@@ -18,6 +18,7 @@ type IncomingParkingPayload = {
   spotCode?: unknown;
   status?: unknown;
   assigneeType?: unknown;
+  propertyId?: unknown;
   assigneeName?: unknown;
   parkingCardNumber?: unknown;
   price?: unknown;
@@ -33,6 +34,7 @@ function validatePayload(payload: IncomingParkingPayload) {
   const parkingCardNumber = normalizeString(payload.parkingCardNumber).toUpperCase();
   const status = payload.status;
   const assigneeType = payload.assigneeType;
+  const propertyId = normalizeString(payload.propertyId);
   const price = Number(payload.price);
 
   if (!spotCode) {
@@ -55,12 +57,18 @@ function validatePayload(payload: IncomingParkingPayload) {
       error: "Numri i kartës së parkimit është i detyrueshëm për vendet e zëna.",
     } as const;
   }
+  if (status === "occupied" && assigneeType === "tenant" && !propertyId) {
+    return {
+      error: "Zgjidh pronën për caktim te qiramarrësi.",
+    } as const;
+  }
 
   return {
     data: {
       spotCode,
       status,
       assigneeType,
+      propertyId: assigneeType === "tenant" ? propertyId : undefined,
       assigneeName: status === "free" ? "" : assigneeName,
       parkingCardNumber: status === "free" ? "" : parkingCardNumber,
       price,
@@ -131,6 +139,47 @@ export async function GET() {
 
     return Response.json(
       { error: "Failed to load parking spots", message },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await requireManagerSession();
+  if (!session) {
+    return Response.json(
+      { error: "Unauthorized", message: "Kërkohet hyrja në sistem." },
+      { status: 401 },
+    );
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id")?.trim() ?? "";
+
+  if (!id) {
+    return Response.json(
+      { error: "Validation failed", message: "ID e vendit të parkimit është e detyrueshme." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const deleted = await deleteParkingSpot(id);
+    if (!deleted) {
+      return Response.json(
+        { error: "Not found", message: "Vendi i parkimit nuk u gjet." },
+        { status: 404 },
+      );
+    }
+    return Response.json({ success: true });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Dështoi fshirja e vendit të parkimit. Provo përsëri.";
+
+    return Response.json(
+      { error: "Failed to delete parking spot", message },
       { status: 500 },
     );
   }

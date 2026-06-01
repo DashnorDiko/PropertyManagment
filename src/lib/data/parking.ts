@@ -7,15 +7,18 @@ export type ParkingListItem = {
   spotCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   parkingCardNumber: string;
   price: number;
+  createdAt: string;
 };
 
 export type CreateParkingInput = {
   spotCode: string;
   status: "free" | "occupied";
   assigneeType: "tenant" | "independent";
+  propertyId?: string;
   assigneeName: string;
   parkingCardNumber: string;
   price: number;
@@ -26,9 +29,11 @@ type ParkingRow = {
   spot_code: string;
   status: "free" | "occupied";
   assignee_type: "tenant" | "independent";
+  property_id: string | null;
   assignee_name: string | null;
   parking_card_number: string | null;
   price: string;
+  created_at: string;
 };
 
 declare global {
@@ -80,11 +85,16 @@ async function ensureParkingTable(pool: Pool): Promise<void> {
       spot_code TEXT NOT NULL,
       status TEXT NOT NULL CHECK (status IN ('free', 'occupied')),
       assignee_type TEXT NOT NULL CHECK (assignee_type IN ('tenant', 'independent')),
+      property_id TEXT,
       assignee_name TEXT,
       parking_card_number TEXT,
       price NUMERIC(12, 2) NOT NULL CHECK (price >= 0),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+  await pool.query(`
+    ALTER TABLE parking_spots
+    ADD COLUMN IF NOT EXISTS property_id TEXT
   `);
 }
 
@@ -94,9 +104,11 @@ function mapRow(row: ParkingRow): ParkingListItem {
     spotCode: row.spot_code,
     status: row.status,
     assigneeType: row.assignee_type,
+    propertyId: row.property_id ?? undefined,
     assigneeName: row.assignee_name ?? "",
     parkingCardNumber: row.parking_card_number ?? "",
     price: Number(row.price),
+    createdAt: row.created_at,
   };
 }
 
@@ -115,9 +127,11 @@ export async function listParkingSpots(): Promise<ParkingListItem[]> {
         spot_code,
         status,
         assignee_type,
+        property_id,
         assignee_name,
         parking_card_number,
-        price
+        price,
+        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
       FROM parking_spots
       ORDER BY created_at DESC
     `,
@@ -146,25 +160,29 @@ export async function createParkingSpot(
         spot_code,
         status,
         assignee_type,
+        property_id,
         assignee_name,
         parking_card_number,
         price
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING
         id,
         spot_code,
         status,
         assignee_type,
+        property_id,
         assignee_name,
         parking_card_number,
-        price
+        price,
+        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
     `,
     [
       id,
       input.spotCode,
       input.status,
       input.assigneeType,
+      input.propertyId ?? null,
       input.assigneeName || null,
       input.parkingCardNumber || null,
       input.price,
@@ -176,4 +194,30 @@ export async function createParkingSpot(
   }
 
   return mapRow(rows[0]);
+}
+
+export async function deleteParkingSpot(id: string): Promise<boolean> {
+  if (!hasDatabaseConfig()) {
+    throw new Error(
+      "No database configuration found. Set DATABASE_URL or PGHOST/PGDATABASE/PGUSER/PGPASSWORD.",
+    );
+  }
+
+  const parkingId = id.trim();
+  if (!parkingId) {
+    return false;
+  }
+
+  const pool = getPool();
+  await ensureParkingTable(pool);
+
+  const { rowCount } = await pool.query(
+    `
+      DELETE FROM parking_spots
+      WHERE id = $1
+    `,
+    [parkingId],
+  );
+
+  return (rowCount ?? 0) > 0;
 }

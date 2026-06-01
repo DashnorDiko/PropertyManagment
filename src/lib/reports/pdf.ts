@@ -34,21 +34,21 @@ export async function generateReportPdf({
   };
 
   drawText(title, 20, rgb(0.1, 0.1, 0.4));
-  drawText(`Period: ${periodLabel}`);
-  drawText(`Generated: ${generatedAt.toISOString()}`);
+  drawText(`Periudha: ${periodLabel}`);
+  drawText(`Gjeneruar: ${generatedAt.toISOString()}`);
   y -= 8;
-  drawText(`Total records: ${statistics.count}`);
-  drawText(`Paid records: ${statistics.paidCount}`);
-  drawText(`Unpaid records: ${statistics.unpaidCount}`);
+  drawText(`Regjistra total: ${statistics.count}`);
+  drawText(`Regjistra të paguar: ${statistics.paidCount}`);
+  drawText(`Regjistra të papaguar: ${statistics.unpaidCount}`);
   y -= 8;
-  drawText("Totals by currency", 14, rgb(0.1, 0.1, 0.4));
-  drawText(`EUR total: ${statistics.totals.EUR.toFixed(2)}`);
-  drawText(`ALL total: ${statistics.totals.ALL.toFixed(2)}`);
+  drawText("Totale sipas monedhës", 14, rgb(0.1, 0.1, 0.4));
+  drawText(`Totali EUR: ${statistics.totals.EUR.toFixed(2)}`);
+  drawText(`Totali ALL: ${statistics.totals.ALL.toFixed(2)}`);
   y -= 8;
-  drawText(`EUR paid: ${statistics.paidTotals.EUR.toFixed(2)}`);
-  drawText(`ALL paid: ${statistics.paidTotals.ALL.toFixed(2)}`);
-  drawText(`EUR unpaid: ${statistics.unpaidTotals.EUR.toFixed(2)}`);
-  drawText(`ALL unpaid: ${statistics.unpaidTotals.ALL.toFixed(2)}`);
+  drawText(`EUR të paguara: ${statistics.paidTotals.EUR.toFixed(2)}`);
+  drawText(`ALL të paguara: ${statistics.paidTotals.ALL.toFixed(2)}`);
+  drawText(`EUR të papaguara: ${statistics.unpaidTotals.EUR.toFixed(2)}`);
+  drawText(`ALL të papaguara: ${statistics.unpaidTotals.ALL.toFixed(2)}`);
 
   return document.save();
 }

@@ -19,6 +19,13 @@ interface PeriodResult {
   label: string;
 }
 
+function calculateCollectionRate(paidCount: number, totalCount: number): number {
+  if (totalCount <= 0) {
+    return 0;
+  }
+  return Math.round((paidCount / totalCount) * 1000) / 10;
+}
+
 function getMonthlyPeriod(searchParams: URLSearchParams): PeriodResult {
   const now = new Date();
   const yearInput = Number(searchParams.get("year"));
@@ -72,12 +79,17 @@ export async function GET(request: NextRequest) {
         type: "monthly",
         period,
         statistics,
+        insights: {
+          collectionRate: calculateCollectionRate(statistics.paidCount, statistics.count),
+          paidDeltaEUR: Number((statistics.paidTotals.EUR - statistics.unpaidTotals.EUR).toFixed(2)),
+          paidDeltaALL: Number((statistics.paidTotals.ALL - statistics.unpaidTotals.ALL).toFixed(2)),
+        },
         generatedAt: new Date().toISOString(),
       });
     }
 
     const pdf = await generateReportPdf({
-      title: "Monthly Payments Report",
+      title: "Raporti Mujor i Pagesave",
       periodLabel: period.label,
       generatedAt: new Date(),
       statistics,
@@ -90,11 +102,11 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof Error ? error.message : "Gabim i panjohur";
 
     return Response.json(
       {
-        error: "Failed to generate monthly report",
+        error: "Dështoi gjenerimi i raportit mujor",
         message,
       },
       { status: 500 },

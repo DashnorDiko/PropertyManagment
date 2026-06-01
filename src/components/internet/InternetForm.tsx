@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
@@ -14,9 +14,17 @@ export type InternetFormValues = {
   serviceCode: string;
   status: InternetStatus;
   assigneeType: AssigneeType;
+  propertyId: string;
   assigneeName: string;
   modemSerialNumber: string;
   price: string;
+};
+
+type PropertyOption = {
+  id: string;
+  unitName: string;
+  tenantName: string;
+  status: "vacant" | "occupied" | "sold";
 };
 
 type InternetFormProps = {
@@ -30,6 +38,7 @@ const defaultValues: InternetFormValues = {
   serviceCode: "",
   status: "free",
   assigneeType: "tenant",
+  propertyId: "",
   assigneeName: "",
   modemSerialNumber: "",
   price: "",
@@ -44,6 +53,7 @@ function sanitizeInput(values: InternetFormValues): InternetFormValues {
   };
 
   if (sanitized.status === "free") {
+    sanitized.propertyId = "";
     sanitized.assigneeName = "";
     sanitized.modemSerialNumber = "";
   }
@@ -64,6 +74,9 @@ function validate(values: InternetFormValues): InternetFormErrors {
 
   if (values.status === "occupied" && !values.modemSerialNumber.trim()) {
     errors.modemSerialNumber = "Numri i modemit është i detyrueshëm kur shërbimi është i zënë.";
+  }
+  if (values.status === "occupied" && values.assigneeType === "tenant" && !values.propertyId) {
+    errors.propertyId = "Zgjidh pronën për qiramarrësin.";
   }
 
   const priceNumber = Number(values.price);
@@ -86,6 +99,30 @@ export function InternetForm({ mode, initialValues }: InternetFormProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [propertyOptions, setPropertyOptions] = useState<PropertyOption[]>([]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    async function loadProperties() {
+      try {
+        const response = await fetch("/api/properties");
+        if (!response.ok) {
+          return;
+        }
+        const body = (await response.json()) as { data?: PropertyOption[] };
+        if (!isCancelled) {
+          setPropertyOptions((body.data ?? []).filter((property) => property.status === "occupied"));
+        }
+      } catch {
+        // Keep empty options on fetch errors.
+      }
+    }
+
+    loadProperties();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const onFieldChange =
     (field: keyof InternetFormValues) =>
@@ -97,8 +134,18 @@ export function InternetForm({ mode, initialValues }: InternetFormProps) {
       };
 
       if (field === "status" && fieldValue === "free") {
+        nextValues.propertyId = "";
         nextValues.assigneeName = "";
         nextValues.modemSerialNumber = "";
+      }
+      if (field === "assigneeType" && fieldValue === "independent") {
+        nextValues.propertyId = "";
+      }
+      if (field === "propertyId") {
+        const selectedProperty = propertyOptions.find((property) => property.id === fieldValue);
+        if (selectedProperty) {
+          nextValues.assigneeName = selectedProperty.tenantName;
+        }
       }
 
       setValues(nextValues);
@@ -203,6 +250,26 @@ export function InternetForm({ mode, initialValues }: InternetFormProps) {
             <option value="tenant">Qiramarrës</option>
             <option value="independent">I pavarur</option>
           </select>
+        </label>
+
+        <label className="space-y-1">
+          <span className="text-sm font-medium text-[var(--pm-text-secondary)]">Prona e Qiramarrësit</span>
+          <select
+            value={values.propertyId}
+            onChange={onFieldChange("propertyId")}
+            disabled={values.assigneeType !== "tenant"}
+            className="w-full rounded-lg border border-[var(--pm-border)] bg-[var(--pm-surface)] px-3 py-2 text-sm text-[var(--pm-text-primary)] outline-none ring-[var(--pm-info-strong)]/40 transition focus:ring disabled:cursor-not-allowed disabled:bg-[var(--pm-surface-soft)]"
+          >
+            <option value="">Zgjidh pronën</option>
+            {propertyOptions.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.unitName} - {property.tenantName || "Pa qiramarrës"}
+              </option>
+            ))}
+          </select>
+          {errors.propertyId ? (
+            <p className="text-xs text-[var(--pm-danger-strong)]">{errors.propertyId}</p>
+          ) : null}
         </label>
 
         <label className="space-y-1">
